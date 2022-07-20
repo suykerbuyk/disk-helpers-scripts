@@ -1,0 +1,8 @@
+#!/bin/sh
+NAME=$(uname -n).txt
+ip a > $NAME
+for x in $(seq 0 4); do
+   echo "ipmitool lan print $x" >>$NAME
+   ipmitool lan print $x >>$NAME
+done
+scp $NAME johns@mgmt:net.info/

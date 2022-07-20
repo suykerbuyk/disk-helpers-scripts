@@ -1,0 +1,56 @@
+{
+    "root-password": "clandestine",
+    "audio": null,
+    "bootloader": "systemd-bootctl",
+    "filesystem": "xfs",
+    "harddrive": {
+        "model": "DGM28-B56D81BCBQC-SG",
+        "path": "/dev/sda",
+        "size": "238.5G"
+    },
+    "hostname": "4u100-1a",
+    "kernels": [
+        "linux"
+    ],
+    "custom-commands": [
+        "sed -i  's/.*UseDNS.*/UseDNS no/g' /etc/ssh/sshd_config",
+        "sed -i  's/.*PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config",
+        "for X in $(ls /boot/loader/entries/*.conf); do sed -i '/^option/ s/$/console=ttyS0,115200n8 text debug log.nologo/' ${X} ; done"
+    ],
+    "keyboard-language": "us",
+    "mirror-region": {
+        "United States": {
+            "http://repo.lyve.colo.seagate.com/arch/archlinux/$repo/os/$arch": true
+        }
+    },
+    "nic": "Copy ISO network configuration to installation",
+    "ntp": true,
+    "packages": [
+        "vim",
+        "tmux",
+        "ipmitool",
+        "dmidecode",
+        "gptfdisk",
+        "docker",
+        "nginx",
+        "cockpit",
+        "zfs-linux",
+        "rsync"
+    ],
+    "profile": {
+        "path": "/usr/lib/python3.9/site-packages/archinstall/profiles/minimal.py"
+    },
+    "script": "guided",
+    "superusers": {
+        "johns": {
+            "!password": "clandestine"
+        },
+        "lyve": {
+            "password": "clandestine"
+        }
+    },
+    "sys-encoding": "utf-8",
+    "sys-language": "en_US",
+    "timezone": "America/Denver",
+    "users": {}
+}
