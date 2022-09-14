@@ -1,12 +1,17 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
+THIS_SCRIPT=$(realpath $0)
+FUNCTION="$1"
+FUNPARAM="$2"
+
 export SSHPASS='Testit123!'
 
 JSON_LOG_DIR='json.logs'
 
 USER='manage'
 TARGETS=("corvault-1a" "corvault-2a" "corvault-3a")
+#TARGETS=("corvault-1a" )
 #TARGETS=("corvault-3a")
 
 # provides a wee bit more verbosity to stderr
@@ -14,58 +19,29 @@ DBG=0
 # prepatory command to the corvault
 BASE_CMD='set cli-parameters json; '
 
-# Make sure we have a support utils installed.
-if [[ $(which jq 2>&1>/dev/null) ]]; then
-       echo "Please intall jq"
-       exit 1
-elif [[ $(which sshpass 2>&1>/dev/null) ]]; then
-       echo "Please intall sshpass"
-       exit 1
-fi
+CheckForPreReqs() {
+	MISSING=""
+	for CHK in jq sshpass dialog bc sdparm
+	do
+		if ! [ -x "$(command -v $CHK)" ]
+		then
+			MISSING="$MISSING $CHK"
+			echo "$CHK is missing"
+		fi
+	done
+	if [ "X${MISSING}" != "X" ] ; then
+		echo "Please install: $MISSING"
+		exit 1
+	fi
+}
 
 if [[ ! -d "${JSON_LOG_DIR}" ]]; then
 	mkdir "${JSON_LOG_DIR}"
 fi
-
-# set dns-management-hostname controller a name corvault-3a
-# abort scrub disk-group dg01
-# An example of using the output of this utility to configure and map 
-# Initiators to volumes:
-# set initiator id 500062b206989400 nickname SAS9305-16e-SPA2500634-p0
-# set initiator id 500062b206989401 nickname SAS9305-16e-SPA2500634-p1
-# set initiator id 500062b206989408 nickname SAS9305-16e-SPA2500634-p2
-# set initiator id 500062b206989649 nickname SAS9305-16e-SPA2500494-p3
-# set initiator id 500062b206989640 nickname SAS9305-16e-SPA2500494-p0
-# set initiator id 500062b206989641 nickname SAS9305-16e-SPA2500494-p1
-# set initiator id 500062b206989648 nickname SAS9305-16e-SPA2500494-p2
-# set initiator id 500062b206989409 nickname SAS9305-16e-SPA2500634-p3
-# set initiator id 500605b00de2aa80 nickname HBA_9405W-16e-SPA2500494-p0
-# set initiator id 500605b00de2aa81 nickname HBA_9405W-16e-SPA2500494-p1
-# set initiator id 500605b00de2aa88 nickname HBA_9405W-16e-SPA2500494-p2
-# set initiator id 500605b00de2aa89 nickname HBA_9405W-16e-SPA2500494-p3
-# set initiator id 500605b00de2b640 nickname HBA_9405W-16e-SP82331324-p0
-# set initiator id 500605b00de2b641 nickname HBA_9405W-16e-SP82331324-p1
-# set initiator id 500605b00de2b648 nickname HBA_9405W-16e-SP82331324-p2
-# set initiator id 500605b00de2b649 nickname HBA_9405W-16e-SP82331324-p3
-# corvault-1 map volume Volume_0000 initiator SAS9305-16e-SPA2500494-p1 lun 2
-# corvault-1 map volume Volume_0001 initiator SAS9305-16e-SPA2500634-p1 lun 2
-# corvault-2 map volume VOL0000 initiator SAS9305-16e-SPA2500494-p0 lun 2
-# corvault-2 map volume VOL0001 initiator SAS9305-16e-SPA2500634-p0 lun 2
-# corvault-3 map volume VOL0000 initiator SAS9305-16e-SPA2500494-p2 lun 2
-# corvault-3 map volume VOL0001 initiator SAS9305-16e-SPA2500634-p2 lun 2
-
+truncate -s 0 cmd.log
 # interesting sysfs paths for coorelating LUNs to host HBA ports and kdevs
 #cat /sys/devices/*/*/*/host*/phy-*/sas_phy/*/sas_address | sort -u | cut -c 15-
 #cat /sys/devices/pci*/*/*/host*/port*/end_device*/target*/*/sas_address | sort -u
-
-# cat stor.show.all.json | jq -r '."Controllers"[]? | ."Response Data"."IT System Overview"[] | (.Ctl |tostring) + ",\t" + .Model + ",\t" + ."AdapterType"  + ",\t" + ."PCI Address" + ",\t" '
-#  0,      HBA 9405W-16e,    SAS3616(B0),  00:19:00:00,
-#  1,      HBA 9405W-16e,    SAS3616(B0),  00:b0:00:00,
-#  2,      SAS9305-16e,      SAS3216(A1),  00:86:00:00,
-#  3,      SAS9305-16e,      SAS3216(A1),  00:af:00:00,
-# cat store.show.c0.all.json | jq -r '."Controllers"[]? | ."Response Data"."Basics"| ."SAS Address" + ",\t" + ."PCI Address"'
-#  500605b00de2aa80,      00:19:00:00
-
 
 
 # kind of like atop, but for Corvault
@@ -83,7 +59,7 @@ monitor_io() {
 DoSSH() {
 	sshpass -e $@
 }
-# The "meat & potatoes" - dispatches commands parses the fubar returned JSON for Corvault into something useful.
+# The "meat & potatoes" - dispatches commands parses (and fixes) the JSON output
 DoCmd() {
 	TGT="${1}"
 	shift
@@ -91,6 +67,7 @@ DoCmd() {
 	[[ $DBG != 0 ]] && echo "TGT: $TGT  CMD: $BASE_CMD $@" 1>&2
 	SSHSOCKET=/tmp/$TGT.ssh.socket
 	SSHOPTS="-o ControlPath=$SSHSOCKET -o ControlMaster=auto -o ControlPersist=10m -o StrictHostKeyChecking=accept-new"
+	echo "ssh ${USER}@${TGT} ${BASE_CMD} $@" >>./cmd.log
 	REPLY=$(DoSSH "ssh ${SSHOPTS} ${USER}@${TGT} ${BASE_CMD} $@")
 	# Pull off the commented lines that contain the commands sent to the target
 	[[ $DBG != 0 ]] && printf "REPLY: %s\n" "$REPLY" 1>&2
@@ -306,8 +283,7 @@ EOF
 	printf "${RESULT}\n"
 }
 GetVolumes() {
-	TGT=$1
-	printf "\nRUN: $TGT ${FUNCNAME[0]}\n"
+	printf "\nRUN: ${FUNCNAME[0]}\n"
 	HDR00="controller,\t"
 	HDR01="owner,\t"
 	HDR02="volume-name,\t"
@@ -628,8 +604,9 @@ RemoveAllControllerDiskGroups() {
 RemoveAllDiskGroupsFromAllControllers() {
 	printf "RUN: $TGT ${FUNCNAME[0]}\n"
 	for TGT in ${TARGETS[*]}; do
-		RemoveAllControllerDiskGroups $TGT
+		RemoveAllControllerDiskGroups $TGT &
 	done
+	wait
 }
 RemoveAllInitiatorNickNames() {
 	printf "RUN: $TGT ${FUNCNAME[0]}\n"
@@ -642,50 +619,13 @@ RemoveAllInitiatorNickNames() {
 			if [[ "X$NICK" != "$X" ]]; then
 				CMD="delete initiator-nickname $NICK"
 				printf "${TGT} ${CMD}  "
-				DoCmd "${TGT}" "${CMD}" | jq -r '.status[]."response-type"'
+				DoCmd "${TGT}" "${CMD}" | jq -r '.status[]."response-type"' &
 			fi
 		done
+		wait
 	done
 
 }
-CreateDiskGroups() {
-	TGT=$1
-	printf "\nRUN: $TGT ${FUNCNAME[0]}\n"
-	CMD="add disk-group"
-	CMD="${CMD} type linear level adapt stripe-width 16+2 spare-capacity 20.0TiB interleaved-volume-count 1"
-	POOL1="assigned-to a disks 0.0-11,0.24-35,0.48-59,0.72-83,0.96-100 dg01"
-	POOL2="assigned-to b disks 0.12-23,0.36-47,0.60-71,0.84-95,0.101-105 dg02"
-	printf "${TGT} ${CMD} ${POOL1} "
-	DoCmd ${TGT} ${CMD} ${POOL1} | jq -r '.status[]."response-type"'
-	printf "${TGT} ${CMD} ${POOL2} "
-	DoCmd ${TGT} ${CMD} ${POOL2} | jq -r '.status[]."response-type"'
-}
-CreateAllDiskGroupsOnAllControllers() {
-	printf "\nRUN: $TGT ${FUNCNAME[0]}\n"
-	for TGT in ${TARGETS[*]}; do
-		CreateDiskGroups $TGT
-	done
-}
-CreateFourLun8plus2ADAPT() {
-	TGT=$1
-	printf "\nRUN: $TGT ${FUNCNAME[0]}\n"
-	CMD="add disk-group"
-	CMD="${CMD} type linear level adapt stripe-width 8+2 spare-capacity 10.0TiB interleaved-volume-count 1 interleaved-basename V "
-	DGS=("assigned-to a disks 0.0-11   dg01"\
-	     "assigned-to a disks 0.12-23  dg02"\
-	     "assigned-to a disks 0.24-35  dg03"\
-	     "assigned-to a disks 0.36-47  dg04"\
-	     "assigned-to b disks 0.53-64  dg05"\
-	     "assigned-to b disks 0.65-76  dg06"\
-	     "assigned-to b disks 0.77-88  dg07"\
-	     "assigned-to b disks 0.89-100 dg08")
-	for DG in "${DGS[@]}"
-	do
-		#echo ${TGT} ${CMD} ${DG}
-		DoCmd ${TGT} ${CMD} ${DG} >/dev/null #don't care about the output
-	done
-}
-
 ResetHostSasLinks() {
 	for TGT in "${TARGETS[@]}"; do
 		printf "\nRUN: $TGT ${FUNCNAME[0]}\n"
@@ -882,60 +822,98 @@ MapVolumes() {
 				VOLS="$(ShowVolumesJSON $TGT)"
 				A_VOLS="$(echo $VOLS| jq -r '.volumes[]? | select(.owner == "A")."serial-number"')"
 				B_VOLS="$(echo $VOLS| jq -r '.volumes[]? | select(.owner == "B")."serial-number"')"
+				LUN=1
 				for V in $A_VOLS; do
-					#echo "A volume: $V"
 					if [ "$A_VOLS" != "" ] &&  [ "X${A_CTRLR_PORT}" != "X" ]; then
-						CMD="map volume $V ports ${CTRLR_PORT} initiator $NICK_NAME lun 8"
+						#echo "A volume: $V LUN=$LUN"
+						CMD="map volume $V ports ${CTRLR_PORT} initiator $NICK_NAME lun $LUN"
 						printf "$CMD "
 						DoCmd "$TGT" "$CMD" | jq -r '.status[]."response-type"'
+						LUN=$((LUN+1))
 					fi
 				done
+				wait
+				LUN=1
 				for V in $B_VOLS; do
-					#echo "B volume: $V"
 					if [ "$B_VOLS" != "" ] && [ "X${B_CTRLR_PORT}" != "X" ]; then
-						CMD="map volume $V ports ${CTRLR_PORT} initiator $NICK_NAME lun 8"
+						#echo "B volume: $V LUN=$LUN"
+						CMD="map volume $V ports ${CTRLR_PORT} initiator $NICK_NAME lun $LUN"
 						printf "$CMD "
-						DoCmd "$TGT" "$CMD" | jq -r '.status[]."response-type"'
+						DoCmd "$TGT" "$CMD" | jq -r '.status[]."response-type"' 
+						LUN=$((LUN+1))
 					fi
 				done
+				wait
 			fi
 		done
 	done
 	done
 }
-ProvisionSystem() {
-	TGT=$1
+Create_2DG_16plus2_ADAPT() {
+	LUN_COUNT=${1:-1}
 	printf "\nRUN: $TGT ${FUNCNAME[0]}\n"
-	RemoveAllDiskGroups $TGT
-	CreateDiskGroups $TGT
-}
-CreateEightPlus2Adapt() {
-	printf "\nRUN: ${FUNCNAME[0]}\n"
 	for TGT in ${TARGETS[*]}; do
-		RemoveDiskGroups "${TGT}" &
-	done
-	wait
-	for TGT in ${TARGETS[*]}; do
-		CreateDiskGroups "${TGT}" &
-	done
-	wait
-	for TGT in ${TARGETS[*]}; do
-		echo "DiskGroups on $TGT"
-		GetDiskGroups "${TGT}"
+		CMD="add disk-group"
+		CMD="${CMD} type linear level adapt stripe-width 16+2 spare-capacity 20.0TiB interleaved-volume-count $LUN_COUNT"
+		POOL1="assigned-to a disks 0.0-11,0.24-35,0.48-59,0.72-83,0.96-100 dg01"
+		POOL2="assigned-to b disks 0.12-23,0.36-47,0.60-71,0.84-95,0.101-105 dg02"
+		printf "${TGT} ${CMD} ${POOL1} "
+		DoCmd ${TGT} ${CMD} ${POOL1} | jq -r '.status[]."response-type"'
+		printf "${TGT} ${CMD} ${POOL2} "
+		DoCmd ${TGT} ${CMD} ${POOL2} | jq -r '.status[]."response-type"'
 	done
 }
-Provision8plus24lun() {
+Create_4DG_8plus2_ADAPT() {
+	LUN_COUNT=${1:-1}
+	DG_COUNT=4
+	LUN_COUNT=$((4 * DG_COUNT))
+	printf "\nRUN: $TGT ${FUNCNAME[0]}\n"
+	for TGT in ${TARGETS[*]}; do
+		CMD="add disk-group"
+		CMD="${CMD} type linear level adapt stripe-width 8+2 spare-capacity 10.0TiB interleaved-volume-count $LUN_COUNT interleaved-basename vol "
+		DGS=("assigned-to a disks 0.0-11   dg01"\
+		     "assigned-to a disks 0.12-23  dg02"\
+		     "assigned-to a disks 0.24-35  dg03"\
+		     "assigned-to a disks 0.36-47  dg04"\
+		     "assigned-to b disks 0.53-64  dg05"\
+		     "assigned-to b disks 0.65-76  dg06"\
+		     "assigned-to b disks 0.77-88  dg07"\
+		     "assigned-to b disks 0.89-100 dg08")
+		for DG in "${DGS[@]}"
+		do
+			#echo ${TGT} ${CMD} ${DG}
+			DoCmd ${TGT} ${CMD} ${DG} >/dev/null  #don't care about the output
+		done
+	done
+}
+Create_2DG_8plus2_ADAPT() {
+	LUN_COUNT=${1:-1}
+	printf "\nRUN: $TGT ${FUNCNAME[0]} with $LUN_COUNT luns.\n"
+	for TGT in ${TARGETS[*]}; do
+		CMD="add disk-group"
+		CMD="${CMD} type linear level adapt stripe-width 8+2 spare-capacity 10.0TiB interleaved-volume-count $LUN_COUNT interleaved-basename vol "
+		DGS=("assigned-to a disks 0.0-52   dg01"\
+		     "assigned-to b disks 0.53-105 dg02")
+		for DG in "${DGS[@]}"
+		do
+			DoCmd ${TGT} ${CMD} ${DG} >/dev/null #don't care about the output
+		done
+	done
+}
+
+ProvisionHighPerfBlock() {
 	printf "\nRUN: ${FUNCNAME[0]}\n"
-	for TGT in "${TARGETS[@]}"
-	do
-		RemoveAllDiskGroups "$TGT"
-	done
-	wait
-	for TGT in "${TARGETS[@]}"
-	do
-		CreateFourLun8plus2ADAPT "$TGT"
-	done
-	wait
+	RemoveAllInitiatorNickNames
+	RemoveAllDiskGroupsFromAllControllers
+	Create_2DG_8plus2_ADAPT 24
+	MapVolumes
+}
+ProvisionForZFS() {
+	printf "\nRUN: ${FUNCNAME[0]}\n"
+	RemoveAllDiskGroupsFromAllControllers
+	RemoveAllInitiatorNickNames
+	Create_2DG_16plus2_ADAPT 1
+	MapVolumes
 }
 GatherInfo() {
 	LOG="cvt_config_$(date +"%F_%H-%M-%S")_$(uname -n).txt"
@@ -952,6 +930,45 @@ GetInitiatorNaming() {
 	do
 		$CMD | tee -a "${LOG}"
 	done
+}
+
+Get_IPs (){
+	if [ $(which sg_inq) ] ; then
+		for SG_DEV in $(ls /dev/sg*)
+		do
+			sg_inq  ${SG_DEV}  | grep SEAGATE -a2 | grep -a1 6575 | grep S100 >/dev/null &&
+				sg_inq ${SG_DEV} --vpd -p 0x85 | grep 'http' | tr -d ' '
+		done | sort -u | sed 's|http://||g' | tr '\n' ' '
+	elif [ $(which sdparm) ]; then
+		for SG_DEV in $(sdparm /dev/sg* --inquiry -p 0 | grep -e 'SEAGATE.*6575' | sed 's/:.*$//g' | tr -d ' ')
+		do
+			sudo sdparm ${SG_DEV}  --inquiry -p 0x85 | grep http | sed 's/http:\/\///g' | tr -d ' '
+		done | sort -u
+	else
+		echo "Please install either sg3-utils or sdparm to continue"
+		exit 1
+	fi
+}
+GetEnclosureInfo() {
+	echo "Getting Enclosure IPs Serial Numbers" >&2
+	echo "Iterating over IPs" >&2
+	for IP in $(su root -c  "bash  $0 Get_IPs")
+	do
+		echo "Checking $IP" >&2
+		CVT_CONFIG=$(ShowConfigurationJSON ${IP})
+		A_HOSTNAME=$(echo "${CVT_CONFIG}" | jq -r '."mgmt-hostnames"[]? | select(.controller=="A")."mgmt-hostname"')
+		B_HOSTNAME=$(echo "${CVT_CONFIG}" | jq -r '."mgmt-hostnames"[]? | select(.controller=="B")."mgmt-hostname"')
+		echo "HOSTNAMES: $A_HOSTNAME $B_HOSTNAME"
+		A_SERIAL=$(echo "$CVT_CONFIG" | jq -r '."controllers"[]? | select(.controller=="A")."serial-number"')
+		B_SERIAL=$(echo "$CVT_CONFIG" | jq -r '."controllers"[]? | select(.controller=="B")."serial-number"')
+		echo "SERIAL_NUMBERS: $A_SERIAL $B_SERIAL"
+		A_IP="$(echo "$CVT_CONFIG" | jq -r '."controllers"[]? | select(."controller-id"=="A")."ip-address"')"
+		B_IP="$(echo "$CVT_CONFIG" | jq -r '."controllers"[]? | select(."controller-id"=="B")."ip-address"')"
+		SYS_NAME="$(echo "$CVT_CONFIG" | jq -r '."system"[]? | ."system-name"')"
+		SYS_SERIAL="$(echo "$CVT_CONFIG" | jq -r '."system"[]? | ."midplane-serial-number"')"
+		echo "$SYS_SERIAL $SYS_NAME controller_a $A_HOSTNAME $A_IP $A_SERIAL"
+		echo "$SYS_SERIAL $SYS_NAME controller_b $B_HOSTNAME $B_IP $B_SERIAL"
+	done | sort -u
 }
 #ShowMpt3SasHBAsJSON
 #ShowMpt3SasHBAs
@@ -973,3 +990,111 @@ GetInitiatorNaming() {
 #GatherInfo
 #ResetSCs
 #ResetMCs
+
+ShowMenu() {
+	cmd=(dialog --keep-tite --menu "Corvault Config Options:" 22 76 16)
+
+	options=(1 "ProvisionHighPerfBlock"
+		 2 "ProvisionForZFS"
+		 3 "ShowMpt3SasHBAs"
+		 4 "GatherInfo"
+		 5 "GetExpanderStatusStats"
+		 6 "GetEnclosureInfo"
+		 7 "Get_IPs"
+		 8 "GetDisksInDiskGroups"
+		 9 "GetInitiators"
+		 a "GetInitiatorNaming"
+		 b "GetHostPhyStatistics"
+		 c "GetVolumes"
+		 d "GetSasBaseInitiatorIDs"
+		 e "ResetHostSasLinks"
+		 f "ResetSCs"
+		 g "ResetMCs"
+		 h "RemoveAllDiskGroupsFromAllControllers"
+		 i "RemoveAllInitiatorNickNames"
+		 j "MapVolumes"
+		 x "Exit"
+	 )
+
+	while [ 1 ]
+	do
+		choices=$("${cmd[@]}" "${options[@]}" 2>&1>/dev/tty )
+		for choice in $choices
+		do
+			case $choice in
+			1)
+				ProvisionHighPerfBlock
+				;;
+			2)
+				ProvisionForZFS
+				;;
+			3)
+				ShowMpt3SasHBAs
+				;;
+			4)
+				GatherInfo
+				;;
+			5)
+				GetExpanderStatusStats
+				;;
+			6)
+				GetEnclosureInfo
+				;;
+			7)
+				Get_IPs
+				;;
+			8)
+				GetDisksInDiskGroups
+				;;
+			9)
+				GetInitiators
+				;;
+			a)
+				GetInitiatorNaming
+				;;
+			b)
+				GetHostPhyStatistics
+				;;
+			c)
+				GetVolumes
+				;;
+			d)
+				GetSasBaseInitiatorIDs
+				;;
+			e)
+				ResetHostSasLinks
+				;;
+			f)
+				ResetSCs
+				;;
+			g)
+				ResetMCs
+				;;
+			h)
+				RemoveAllDiskGroupsFromAllControllers
+				;;
+			i)
+				RemoveAllInitiatorNickNames
+				;;
+			j)
+				MapVolumes
+				;;
+			*)
+				echo "No selection"
+				exit
+				;;
+			esac
+			printf "\n"
+			read -p "Hit enter to continue ..."
+		done
+	done
+}
+
+CheckForPreReqs
+
+if [[ "${FUNCTION}"X == X ]] ; then
+	ShowMenu
+else
+	#echo "Calling $FUNCTION $FUNPARAM" >&2
+	$FUNCTION $FUNPARAM
+fi
