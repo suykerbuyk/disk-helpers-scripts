@@ -1,19 +1,24 @@
 #!/bin/bash
 set -e
-POOL_NAME=cvt
-LUN_PATTERN="/dev/disk/by-id/wwn-0x600c0ff000*"
+POOL_NAME=DESTOR
+EVANS='wwn-0x5000c500c'
+CORVAULT='wwn-0x600c0ff000'
+LUN_PATTERN="/dev/disk/by-id/${EVANS}*"
 LOGDIR=test
 
 if [ ! -d ${LOGDIR} ]; then
 	mkdir ${LOGDIR}
 fi
 
+LUN_COUNT=$(ls $LUN_PATTERN | grep -v part| wc -l )
+echo "LUN_COUNT=$TGT_COUNT"
 
 SCRIPT_NAME="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
 
 wipe_zfs_pools() {
 	for POOL in $(zpool list -H | grep $POOL_NAME | awk '{print $1}')
 	do
+		umount /${POOL}
 		echo "zpool destroy $POOL"
 		zpool destroy $POOL &
 	done
@@ -42,6 +47,9 @@ wipe_zfs_pools() {
 	done
 	wait
 	sleep 1
+	partprobe &
+	echo "Waiting for partprobe"
+	wait
 }
 
 rescan_scsi_bus() {
@@ -56,6 +64,14 @@ rescan_scsi_bus() {
 create_draid_zpool() {
 	wipe_zfs_pool
 	zpool create ${POOL_NAME}  -O recordsize=512K -O atime=off -O dnodesize=auto -o ashift=12 draid2:4d:6c:0s  ${LUN_PATTERN}
+}
+create_5u84_draid2_10_zpool() {
+	wipe_zfs_pools
+	zpool create ${POOL_NAME}  -O recordsize=512K -O atime=off -O dnodesize=auto -o ashift=12 draid2:10d:${LUN_COUNT}c:4s  ${LUN_PATTERN}
+}
+create_5u84_draid2_8_zpool() {
+	wipe_zfs_pools
+	zpool create ${POOL_NAME}  -O recordsize=32K -O atime=off -O dnodesize=auto -o ashift=12 draid2:8d:${LUN_COUNT}c:4s  ${LUN_PATTERN}
 }
 create_raidz2_zpool() {
 	wipe_zfs_pool
@@ -72,11 +88,14 @@ create_individual_pools() {
 }
 
 
-wipe_zfs_pools
-rescan_scsi_bus
-create_individual_pools
+#create_individual_pools
+#create_5u84_draid_zpool
+#create_5u84_draid2_8_zpool
+#wipe_zfs_pools
 #clear all dmesg history
-#dmesg -c
+dmesg -C
+echo $((32 * 1024 * 1024 *1024)) > /sys/module/zfs/parameters/zfs_arc_max
+echo 0x0006020A >/sys/module/mpt3sas/parameters/logging_level
 echo "Start: $SCRIPT_NAME">/dev/kmsg
 for IOENGINE in libaio io_uring; do
 	for IODEPTH in 1 8 16 32; do
@@ -88,7 +107,7 @@ for IOENGINE in libaio io_uring; do
 						TEST="${POOL}-${IOENGINE}-${IODEPTH}-${PAT}-${BLK}-${JOBS}.fio.json"
 						echo "Running $TEST"
 						zpool clear ${POOL}
-						/root/fio --directory=/${POOL} \
+						$PWD/fio-3.30 --directory=/${POOL} \
 						    --name="${TEST}" \
 						    --size=128G \
 						    --rw=$PAT \
