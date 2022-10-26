@@ -1,11 +1,24 @@
 #!/bin/bash
 
 ZPOOL_NAME="DESTOR"
-VDEV_DSK_CNT=10
-LUN_PATTERN="/dev/disk/by-id/wwn-0x5000c500c"
+VDEV_DSK_CNT=12
+EVANS_WWN_BASE='wwn-0x5000c500c'
+MACH2_WWN_BASE='wwn-0x6000c500a'
+TATSU_WWN_BASE='wwn-0x5000c5009'
+CRVLT_WWN_BASE='wwn-0x600c0ff00'
+LUN_PATTERN="/dev/disk/by-id/${CRVLT_WWN_BASE}*"
 ZRAID_VDEV_TYPE="raidz2"
-PROVISION_SCRIPT="$PWD/create_zraid.sh"
+PROVISION_SCRIPT="$PWD/provision_zfs.sh"
 
+EVANS_LUN_CNT=$(ls /dev/disk/by-id/${EVANS_WWN_BASE}* | grep -v part| wc -l)
+MACH2_LUN_CNT=$(ls /dev/disk/by-id/${MACH2_WWN_BASE}* | grep -v part| wc -l)
+TATSU_LUN_CNT=$(ls /dev/disk/by-id/${TATSU_WWN_BASE}* | grep -v part| wc -l)
+CRVLT_LUN_CNT=$(ls /dev/disk/by-id/${CRVLT_WWN_BASE}* | grep -v part| wc -l)
+
+echo "EVANS_LUN_CNT=${EVANS_LUN_CNT}"
+echo "MACH2_LUN_CNT=${MACH2_LUN_CNT}"
+echo "TATSU_LUN_CNT=${TATSU_LUN_CNT}"
+echo "CRVLT_LUN_CNT=${CRVLT_LUN_CNT}"
 wipe_zfs() {
 	for P in $(zpool list | grep "$ZPOOL_NAME" | awk '{print $1}')
 	do
@@ -40,7 +53,7 @@ wipe_zfs() {
 	partprobe
 }
 
-mkarray() {
+mkraidz2_script() {
 	declare -A dsk_array
 	ROW=""
 	CNTR=1
@@ -70,6 +83,6 @@ mkarray() {
 	done
 	printf "   spare %s\n" "$SPARES" | tee -a "${PROVISION_SCRIPT}"
 }
-#wipe_zfs
-mkarray
+wipe_zfs
+mkraidz2_script
 chmod +x "${PROVISION_SCRIPT}"
