@@ -10,7 +10,8 @@ export SSHPASS='Testit123!'
 JSON_LOG_DIR='json.logs'
 
 USER='manage'
-TARGETS=("corvault-1a" "corvault-2a" "corvault-3a")
+#TARGETS=("corvault-1a" "corvault-2a" "corvault-3a")
+TARGETS=("corvault30" "corvault31" "corvault32" "corvault33" "corvault34" "corvault35" "corvault36" "corvault37")
 #TARGETS=("corvault-1a" )
 #TARGETS=("corvault-3a")
 
@@ -110,6 +111,11 @@ ShowHostPhyStatisticsJSON() {
 	CMD="show host-phy-statistics"
 	DoCmd ${TGT} "${CMD}" | tee "${JSON_LOG_DIR}/${TGT}_show_host-phy-satistics.json"
 }
+ShowEnclDiskStatusJSON() {
+	TGT=$1
+	CMD="show disks encl"
+	DoCmd ${TGT} "${CMD}" | tee "${JSON_LOG_DIR}/${TGT}_show_disks_enclosure.json"
+}
 ShowHostsGroupsJSON() {
 	TGT=$1
 	CMD="show host-groups"
@@ -154,37 +160,52 @@ ShowMpt3SasHBAsJSON() {
 	for X in $(find /sys/class/scsi_host/host*/ | grep host_sas_address)
 	do
 		ENTRY_COUNT=$((ENTRY_COUNT + 1))
+		SCSI_HOST_PATH=$(dirname $X)
 		CTRLR_PATH=$(dirname $(realpath $X))
-		PCI_ADDR=$(printf "$CTRLR_PATH" | awk -F '/' '{print $6}')
 		PCI_HOST_PATH="$(dirname $(dirname $(dirname $CTRLR_PATH)))"
-		PCI_VENDOR="$(cat $PCI_HOST_PATH/vendor)"
-		PCI_SUBSYSTEM_VENDOR="$(cat $PCI_HOST_PATH/subsystem_vendor)"
-		PCI_SUBSYSTEM_DEVICE="$(cat $PCI_HOST_PATH/subsystem_device)"
-		UNIQUE_ID="$(cat $CTRLR_PATH/unique_id)"
-		SAS_ADDR="$(cat $CTRLR_PATH/host_sas_address | sed 's/0x//g')"
-		BOARD_NAME="$(cat $CTRLR_PATH/board_name | sed 's/ /_/g')"
-		BOARD_ASSEMBLY="$(cat $CTRLR_PATH/board_assembly)"
-		VERSION_BIOS="$(cat $CTRLR_PATH/version_bios)"
-		VERSION_FW="$(cat $CTRLR_PATH/version_fw)"
-		VERSION_MPI="$(cat $CTRLR_PATH/version_mpi)"
-		VERSION_NVDATA="$(cat $CTRLR_PATH/version_nvdata_persistent)"
-		VERSION_PRODUCT="$(cat $CTRLR_PATH/version_product)"
-		printf $PREFIX
-		printf "  \"sysfs-path\": \"$CTRLR_PATH\",\n"
-		printf "  \"unique-id\": \"$UNIQUE_ID\",\n"
-		printf "  \"pci-vendor\": \"$PCI_VENDOR\",\n"
-		printf "  \"pci-subsystem-vendor\": \"$PCI_SUBSYSTEM_VENDOR\",\n"
-		printf "  \"pci-subsystem-device\": \"$PCI_SUBSYSTEM_DEVICE\",\n"
-		printf "  \"board-name\": \"$BOARD_NAME\",\n"
-		printf "  \"board-assembly\": \"$BOARD_ASSEMBLY\",\n"
-		printf "  \"sas-address\": \"$SAS_ADDR\",\n"
-		printf "  \"pci-address\": \"$PCI_ADDR\",\n"
-		printf "  \"version-fw\": \"$VERSION_FW\",\n"
-		printf "  \"version-bios\": \"$VERSION_BIOS\",\n"
-		printf "  \"version-mpi\": \"$VERSION_MPI\",\n"
-		printf "  \"version-nvdata\": \"$VERSION_NVDATA\",\n"
-		printf "  \"version-product\": \"$VERSION_PRODUCT\"\n"
-		PREFIX="  },\n{\n"
+		PCI_ADDR=$(printf "$CTRLR_PATH" | awk -F '/' '{print $6}')
+		#echo "SCSI_HOST_PATH: $SCSI_HOST_PATH" >&2
+		#echo "CTRLR_PATH    : $CTRLR_PATH" >&2
+		#echo "PCI_HOST_PATH : $PCI_HOST_PATH" >&2
+		#if [ -f $CTRLR_PATH/proc_name ]; then
+		if [ -f $SCSI_HOST_PATH/proc_name ]; then
+			PROC_NAME=$(cat $SCSI_HOST_PATH/proc_name)
+			#echo " PROC_NAME=$PROC_NAME" >&2
+			if [[ "$PROC_NAME" == *"mpt3sas"* ]] ; then
+				PCI_VENDOR="$(cat $PCI_HOST_PATH/vendor)"
+				PCI_SUBSYSTEM_VENDOR="$(cat $PCI_HOST_PATH/subsystem_vendor)"
+				PCI_SUBSYSTEM_DEVICE="$(cat $PCI_HOST_PATH/subsystem_device)"
+				UNIQUE_ID="$(cat $SCSI_HOST_PATH/unique_id)"
+				SAS_ADDR="$(cat $SCSI_HOST_PATH/host_sas_address | sed 's/0x//g' )"
+				BOARD_NAME="$(cat $SCSI_HOST_PATH/board_name | sed 's/ /_/g' | tr -d '"\0[:cntrl:]' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+				if [[ "X${BOARD_NAME}" == "X" ]]; then BOARD_NAME="NA"; fi
+				BOARD_ASSEMBLY="$(cat $SCSI_HOST_PATH/board_assembly | tr -d '"\0[:cntrl:]' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+				if [[ "X${BOARD_ASSEMBLY}" == "X" ]]; then BOARD_ASSEMBLY="NA"; fi
+				VERSION_BIOS="$(cat $SCSI_HOST_PATH/version_bios)"
+				VERSION_FW="$(cat $SCSI_HOST_PATH/version_fw)"
+				VERSION_MPI="$(cat $SCSI_HOST_PATH/version_mpi)"
+				VERSION_NVDATA="$(cat $SCSI_HOST_PATH/version_nvdata_persistent | tr -d '"\0[:cntrl:]' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+				VERSION_PRODUCT="$(cat $SCSI_HOST_PATH/version_product | tr -d '"\0[:cntrl:]' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+				#read a
+				printf $PREFIX
+				printf "  \"sysfs-path\": \"$PCI_HOST_PATH\",\n"
+				printf "  \"unique-id\": \"$UNIQUE_ID\",\n"
+				printf "  \"pci-vendor\": \"$PCI_VENDOR\",\n"
+				printf "  \"pci-subsystem-vendor\": \"$PCI_SUBSYSTEM_VENDOR\",\n"
+				printf "  \"pci-subsystem-device\": \"$PCI_SUBSYSTEM_DEVICE\",\n"
+				printf "  \"board-name\": \"$BOARD_NAME\",\n"
+				printf "  \"board-assembly\": \"$BOARD_ASSEMBLY\",\n"
+				printf "  \"sas-address\": \"$SAS_ADDR\",\n"
+				printf "  \"pci-address\": \"$PCI_ADDR\",\n"
+				printf "  \"version-fw\": \"$VERSION_FW\",\n"
+				printf "  \"version-bios\": \"$VERSION_BIOS\",\n"
+				printf "  \"version-mpi\": \"$VERSION_MPI\",\n"
+				printf "  \"version-nvdata\": \"$VERSION_NVDATA\",\n"
+				printf "  \"version-product\": \"$VERSION_PRODUCT\"\n"
+				PREFIX="  },\n{\n"
+
+			fi
+		fi
 	done
 	[[ $ENTRY_COUNT == 0 ]] || printf "  }\n"
 	printf "]}\n" | tee "${JSON_LOG_DIR}/mpt3sas_hbas.json"
@@ -406,6 +427,41 @@ GetExpanderStatusStats(){
 		GetExpanderStatusStatsNoHdr "$TGT" $FILTERED
 	done
 }
+GetEnclDiskStatusNoHdr() {
+	TGT=$1
+	JQ=$(cat <<"EOF" | tr -d '\n\r\t'
+	."enclosure-list"[]
+	| $T + ",\t" + (.slot|tostring) + ",\t"
+	+ (."status-numeric"|tostring) + ",\t"
+	+ .status + ",\t" +
+	.vendor + ",\t"
+	+ .model + ",\t"
+	+ ."serial-number" + ",\t"
+	+ .size
+EOF
+)
+	[[ $DBG != 0 ]] && printf "JQ : %s\n" "${JQ}" 1>&2
+	RESULT=$(ShowEnclDiskStatusJSON $TGT | jq --arg T "$TGT" -r "${JQ}")
+	printf "${RESULT}\n"
+}
+GetEnclDiskStatus() {
+	TGT=$1
+	printf "\nRUN: ${FUNCNAME[0]}\n"
+	HDR00="controller,\t"
+	HDR01="slot,\t"
+	HDR02="status,\t"
+	HDR03="state,\t"
+	HDR04="vendor,\t\t"
+	HDR05="model,\t\t"
+	HDR06="serial,\t\t\t"
+	HDR07="size"
+	HDR="${HDR00}${HDR01}${HDR02}${HDR03}${HDR04}${HDR05}${HDR06}${HDR07}"
+	printf "${HDR}\n"
+	for TGT in "${TARGETS[@]}"
+	do
+		GetEnclDiskStatusNoHdr "$TGT"
+	done
+}
 GetHostPhyStatisticsNoHdr() {
 	TGT=$1
 	FILTERED=$2
@@ -542,7 +598,8 @@ GetDiskGroupsNoHdr() {
 	 | $T + ",\t"
 	 + .name +",\t" + .size + ",\t"
 	 + ."storage-type" + ",\t\t"
-	 + .raidtype + ",\t\t"
+	 + .raidtype + ",\t"
+	 + ."stripe-width" + ",\t"
 	 + (."diskcount"|tostring)
 	 + ",\t\t" + .owner + ",\t"
 	 + ."serial-number"
@@ -559,9 +616,10 @@ GetDiskGroups() {
 	HDR02="size,           "
 	HDR03="storage-type,\t"
 	HDR04="raid-type,\t"
-	HDR05="disk-count,\t"
-	HDR06="owner,\t"
-	HDR07="serial-number"
+	HDR05="strip-width,\t\t"
+	HDR06="disk-count,\t"
+	HDR07="owner,\t"
+	HDR08="serial-number"
 	HDR="${HDR00}${HDR01}${HDR02}${HDR03}${HDR04}${HDR05}${HDR06}${HDR07}"
 	printf "${HDR}\n"
 	for TGT in "${TARGETS[@]}"
@@ -854,9 +912,11 @@ Create_2DG_16plus2_ADAPT() {
 	printf "\nRUN: $TGT ${FUNCNAME[0]}\n"
 	for TGT in ${TARGETS[*]}; do
 		CMD="add disk-group"
-		CMD="${CMD} type linear level adapt stripe-width 16+2 spare-capacity 20.0TiB interleaved-volume-count $LUN_COUNT"
-		POOL1="assigned-to a disks 0.0-11,0.24-35,0.48-59,0.72-83,0.96-100 dg01"
-		POOL2="assigned-to b disks 0.12-23,0.36-47,0.60-71,0.84-95,0.101-105 dg02"
+		CMD="${CMD} type linear level adapt stripe-width 16+2 spare-capacity 40.0TiB interleaved-volume-count $LUN_COUNT"
+		#jPOOL1="assigned-to a disks 0.0-11,0.24-35,0.48-59,0.72-83,0.96-100 dg01"
+		#POOL2="assigned-to b disks 0.12-23,0.36-47,0.60-71,0.84-95,0.101-105 dg02"
+		POOL1="assigned-to a disks 0.3-11,0.24-35,0.48-59,0.72-83,0.96-100 dg01"
+		POOL2="assigned-to b disks 0.15-23,0.36-47,0.60-71,0.84-95,0.101-105 dg02"
 		printf "${TGT} ${CMD} ${POOL1} "
 		DoCmd ${TGT} ${CMD} ${POOL1} | jq -r '.status[]."response-type"'
 		printf "${TGT} ${CMD} ${POOL2} "
@@ -908,17 +968,24 @@ ProvisionHighPerfBlock() {
 	Create_2DG_8plus2_ADAPT 24
 	MapVolumes
 }
-ProvisionForZFS() {
+ProvisionForZFS16plus2() {
 	printf "\nRUN: ${FUNCNAME[0]}\n"
 	RemoveAllDiskGroupsFromAllControllers
 	RemoveAllInitiatorNickNames
 	Create_2DG_16plus2_ADAPT 1
 	MapVolumes
 }
+ProvisionForZFS8plus2() {
+	printf "\nRUN: ${FUNCNAME[0]}\n"
+	RemoveAllDiskGroupsFromAllControllers
+	RemoveAllInitiatorNickNames
+	Create_2DG_8plus2_ADAPT 1
+	MapVolumes
+}
 GatherInfo() {
 	LOG="cvt_config_$(date +"%F_%H-%M-%S")_$(uname -n).txt"
 	LOG=$(echo ${LOG} | sed 's/ /_/g')
-	for CMD in ShowMpt3SasHBAs GetInquiry GetPowerReadings GetVolumes GetInitiators GetMaps GetDiskGroups GetDisksInDiskGroups GetHostPhyStatistics GetDisks
+	for CMD in ShowMpt3SasHBAs GetInquiry GetPowerReadings GetVolumes GetInitiators GetMaps GetDiskGroups GetDisksInDiskGroups GetHostPhyStatistics GetDisks GetEnclDiskStatus
 	do
 		$CMD | tee -a "${LOG}"
 	done
@@ -970,49 +1037,33 @@ GetEnclosureInfo() {
 		echo "$SYS_SERIAL $SYS_NAME controller_b $B_HOSTNAME $B_IP $B_SERIAL"
 	done | sort -u
 }
-#ShowMpt3SasHBAsJSON
-#ShowMpt3SasHBAs
-#ShowExpanderStatusStatsJSON corvault-1a
-#GetExpanderStatusStats
-#GetDisksInDiskGroups
-#GetInitiatorNaming
-#GetInitiators
-#GetHostPhyStatistics
-#GetVolumes
-#GetSasBaseInitiatorIDs
-
-#RemoveAllDiskGroupsFromAllControllers
-#RemoveAllInitiatorNickNames
-#CreateAllDiskGroupsOnAllControllers
-#MapVolumes
-
-#ResetHostSasLinks
-#GatherInfo
-#ResetSCs
-#ResetMCs
-
-ShowMenu() {
+SelectTarget() {
 	cmd=(dialog --keep-tite --menu "Corvault Config Options:" 22 76 16)
+}
+ShowMenu() {
+	cmd=(dialog --keep-tite --defaultno --menu "Corvault Config Options:" 22 76 16)
 
 	options=(1 "ProvisionHighPerfBlock"
-		 2 "ProvisionForZFS"
-		 3 "ShowMpt3SasHBAs"
-		 4 "GatherInfo"
-		 5 "GetExpanderStatusStats"
-		 6 "GetEnclosureInfo"
-		 7 "Get_IPs"
-		 8 "GetDisksInDiskGroups"
-		 9 "GetInitiators"
-		 a "GetInitiatorNaming"
-		 b "GetHostPhyStatistics"
-		 c "GetVolumes"
-		 d "GetSasBaseInitiatorIDs"
-		 e "ResetHostSasLinks"
-		 f "ResetSCs"
-		 g "ResetMCs"
-		 h "RemoveAllDiskGroupsFromAllControllers"
-		 i "RemoveAllInitiatorNickNames"
-		 j "MapVolumes"
+		 2 "ProvisionForZFS16plus2"
+		 3 "ProvisionForZFS8plus2"
+		 4 "ShowMpt3SasHBAs"
+		 5 "GatherInfo"
+		 6 "GetExpanderStatusStats"
+		 7 "GetEnclosureInfo"
+		 8 "Get_IPs"
+		 9 "GetDisksInDiskGroups"
+		 a "GetInitiators"
+		 b "GetInitiatorNaming"
+		 c "GetHostPhyStatistics"
+		 d "GetVolumes"
+		 e "GetSasBaseInitiatorIDs"
+		 f "ResetHostSasLinks"
+		 g "ResetSCs"
+		 h "ResetMCs"
+		 i "RemoveAllDiskGroupsFromAllControllers"
+		 j "RemoveAllInitiatorNickNames"
+		 k "MapVolumes"
+		 l "GetEnclDiskStatus"
 		 x "Exit"
 	 )
 
@@ -1026,58 +1077,64 @@ ShowMenu() {
 				ProvisionHighPerfBlock
 				;;
 			2)
-				ProvisionForZFS
+				ProvisionForZFS16plus2
 				;;
 			3)
-				ShowMpt3SasHBAs
+				ProvisionForZFS8plus2
 				;;
 			4)
-				GatherInfo
+				ShowMpt3SasHBAs
 				;;
 			5)
-				GetExpanderStatusStats
+				GatherInfo
 				;;
 			6)
-				GetEnclosureInfo
+				GetExpanderStatusStats
 				;;
 			7)
-				Get_IPs
+				GetEnclosureInfo
 				;;
 			8)
-				GetDisksInDiskGroups
+				Get_IPs
 				;;
 			9)
-				GetInitiators
+				GetDisksInDiskGroups
 				;;
 			a)
-				GetInitiatorNaming
+				GetInitiators
 				;;
 			b)
-				GetHostPhyStatistics
+				GetInitiatorNaming
 				;;
 			c)
-				GetVolumes
+				GetHostPhyStatistics
 				;;
 			d)
-				GetSasBaseInitiatorIDs
+				GetVolumes
 				;;
 			e)
-				ResetHostSasLinks
+				GetSasBaseInitiatorIDs
 				;;
 			f)
-				ResetSCs
+				ResetHostSasLinks
 				;;
 			g)
-				ResetMCs
+				ResetSCs
 				;;
 			h)
-				RemoveAllDiskGroupsFromAllControllers
+				ResetMCs
 				;;
 			i)
-				RemoveAllInitiatorNickNames
+				RemoveAllDiskGroupsFromAllControllers
 				;;
 			j)
+				RemoveAllInitiatorNickNames
+				;;
+			k)
 				MapVolumes
+				;;
+			l)
+				GetEnclDiskStatus
 				;;
 			*)
 				echo "No selection"
