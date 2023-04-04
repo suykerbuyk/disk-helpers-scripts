@@ -748,6 +748,7 @@ ShowMenuStart() {
 	done
 }
 
+CheckForPreReqs
 if [[ "${SCRIPTED_FUNCTION}"X == X ]] ; then
 	ShowMenuStart
 else
