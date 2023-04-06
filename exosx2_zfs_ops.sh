@@ -39,16 +39,19 @@ CRVLT_SAS_LUN_CNT="${#CRVLT_SAS_LUNS[*]}"
 # a safe, algorithmic approach to identifying them.
 # You MUST change these devices and paths to match the device paths
 # of your environment.
-declare -a ZFS_SPECIAL_LUNS=(\
-	"/dev/disk/by-id/nvme-SHPP41-2000GM_SDBCN63771060CS1V"\
-	"/dev/disk/by-id/nvme-SHPP41-2000GM_SDBCN63771060CS25"\
-)
-declare -a ZFS_CACHE_LUNS=(\
-	"/dev/disk/by-id/nvme-WD_BLACK_SN850X_4000GB_224519803014"\
-)
-declare -a ZFS_LOG_LUNS=(\
-	"/dev/disk/by-id/nvme-SHPP41-2000GM_SDBCN63771060CS1D"
-)
+declare -a ZFS_SPECIAL_LUNS=()
+declare -a ZFS_CACHE_LUNS=()
+#declare -a ZFS_SPECIAL_LUNS=(\
+#	"/dev/disk/by-id/nvme-SHPP41-2000GM_SDBCN63771060CS1V"\
+#	"/dev/disk/by-id/nvme-SHPP41-2000GM_SDBCN63771060CS25"\
+#)
+#declare -a ZFS_CACHE_LUNS=(\
+#	"/dev/disk/by-id/nvme-WD_BLACK_SN850X_4000GB_224519803014"\
+#)
+declare -a ZFS_LOG_LUNS=()
+#declare -a ZFS_LOG_LUNS=(\
+#	"/dev/disk/by-id/nvme-SHPP41-2000GM_SDBCN63771060CS1D"
+#)
 
 ZFS_SPECIAL_LUN_CNT="${#ZFS_SPECIAL_LUNS[@]}"
 ZFS_CACHE_LUN_CNT="${#ZFS_CACHE_LUNS[@]}"
@@ -64,13 +67,13 @@ ZPOOL_NAME="STXTEST"
 ZPOOL_COMMENT="STX_TEST"
 ZPOOL_ASHIFT="12"
 ZPOOL_AUTO_TRIM="on"
-ZFS_RECORD_SIZE="$((1024*1024*8))"
+ZFS_RECORD_SIZE="$((1024*1024*1))"
 ZFS_ATIME='off'
 ZFS_COMPRESSION='off'
 ZFS_DNODE_SIZE='auto'
 ZFS_SYNC='disabled'
-ZFS_MAX_RECORD_SIZE="$((1024*1024*16))"
-ZFS_SPECIAL_SMALL_BLOCK_SIZE="128K"
+ZFS_MAX_RECORD_SIZE="$((1024*1024*1))"
+ZFS_SPECIAL_SMALL_BLOCK_SIZE="32K"
 
 #=======================================================
 
