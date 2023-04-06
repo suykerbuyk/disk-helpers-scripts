@@ -31,7 +31,7 @@ map_disk_slots() {
        device_slot=$(printf "%03d" $device_slot)
        kdev=$(readlink -f $d)
        echo "  slot=$device_slot $dev sas_addr=$sas_address s/n=$this_sn $kdev"
-   done
+   done | sort
 }
 for DSK_TYPE in MACH2 EVANS TATSU X2SAS
 do
