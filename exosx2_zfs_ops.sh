@@ -17,19 +17,24 @@ EVANS_WWN_BASE='wwn-0x5000c500c'
 MACH2_WWN_BASE='wwn-0x6000c500a'
 TATSU_WWN_BASE='wwn-0x5000c5009'
 CRVLT_WWN_BASE='wwn-0x600c0ff00'
-OSPRY_ATA_BASE='ata-ST18000NM0092'
+OSPRY_ATA_BASE='ata-ST18000NM00'
+#OSPRY_ATA_BASE='wwn-0x5ace42e02'
+OSPRY_SAS_BASE='wwn-0x6000c500d'
+
+
+X2LUN_SEP='0001000000000000'
 
 #=======================================================
 # Inventory storage targets
 OSPRY_ATA_LUNS=( $(ls /dev/disk/by-id/${OSPRY_ATA_BASE}* 2>/dev/null | grep -v part || true ) )
+OSPRY_SAS_LUNS=( $(ls /dev/disk/by-id/${OSPRY_SAS_BASE}* | grep -v ${X2LUN_SEP} 2>/dev/null | grep -v part || true ) )
 EVANS_SAS_LUNS=( $(ls /dev/disk/by-id/${EVANS_WWN_BASE}* 2>/dev/null | grep -v part || true ) )
-MACH2_SAS_LUNS=( $(ls /dev/disk/by-id/${MACH2_WWN_BASE}* 2>/dev/null | grep -v part || true ) )
 MACH2_SAS_LUNS=( $(ls /dev/disk/by-id/${MACH2_WWN_BASE}* 2>/dev/null | grep -v part || true ) )
 TATSU_SAS_LUNS=( $(ls /dev/disk/by-id/${TATSU_WWN_BASE}* 2>/dev/null | grep -v part || true ) )
 CRVLT_SAS_LUNS=( $(ls /dev/disk/by-id/${CRVLT_WWN_BASE}* 2>/dev/null | grep -v part || true ) )
 OSPRY_ATA_LUN_CNT="${#OSPRY_ATA_LUNS[*]}"
+OSPRY_SAS_LUN_CNT="${#OSPRY_SAS_LUNS[*]}"
 EVANS_SAS_LUN_CNT="${#EVANS_SAS_LUNS[*]}"
-MACH2_SAS_LUN_CNT="${#MACH2_SAS_LUNS[*]}"
 MACH2_SAS_LUN_CNT="${#MACH2_SAS_LUNS[*]}"
 TATSU_SAS_LUN_CNT="${#TATSU_SAS_LUNS[*]}"
 CRVLT_SAS_LUN_CNT="${#CRVLT_SAS_LUNS[*]}"
@@ -102,8 +107,33 @@ touch $LOG_FILE
 # We could iterate against LUN counts, but that 
 # would be less determistic than simply forcing it here.
 declare -a TARGET_LUNS
-TARGET_LUNS=(${OSPRY_ATA_LUNS[*]})
-TARGET_LUN_CNT=${#TARGET_LUNS[*]}
+TARGET_LUN_CNT=0
+TARGET_DRV_ID=""
+if [[ ${OSPRY_ATA_LUN_CNT} > ${TARGET_LUN_CNT} ]]; then
+	TARGET_LUNS=(${OSPRY_ATA_LUNS[*]})
+	TARGET_LUN_CNT=${#TARGET_LUNS[*]}
+	TARGET_DRV_ID=${OSPRY_ATA_BASE}
+elif [[ ${OSPRY_SAS_LUN_CNT} > ${TARGET_LUN_CNT} ]]; then
+	TARGET_LUNS=(${OSPRY_SAS_LUNS[*]})
+	TARGET_LUN_CNT=${#TARGET_LUNS[*]}
+	TARGET_DRV_ID=${OSPRY_SAS_BASE}
+elif [[ ${EVANS_SAS_LUN_CNT} > ${TARGET_LUN_CNT} ]]; then
+	TARGET_LUNS=(${EVANS_SAS_LUNS[*]})
+	TARGET_LUN_CNT=${#TARGET_LUNS[*]}
+	TARGET_DRV_ID=${EVANS_SAS_BASE}
+elif [[ ${MACH2_SAS_LUN_CNT} > ${TARGET_LUN_CNT} ]]; then
+	TARGET_LUNS=(${MACH2_SAS_LUNS[*]})
+	TARGET_LUN_CNT=${#TARGET_LUNS[*]}
+	TARGET_DRV_ID=${MACH2_SAS_BASE}
+elif [[ ${TATSU_SAS_LUN_CNT} > ${TARGET_LUN_CNT} ]]; then
+	TARGET_LUNS=(${TATSU_SAS_LUNS[*]})
+	TARGET_LUN_CNT=${#TARGET_LUNS[*]}
+	TARGET_DRV_ID=${TATSU_SAS_BASE}
+elif [[ ${CRVLT_SAS_LUN_CNT} > ${TARGET_LUN_CNT} ]]; then
+	TARGET_LUNS=(${CRVLT_SAS_LUNS[*]})
+	TARGET_LUN_CNT=${#TARGET_LUNS[*]}
+	TARGET_DRV_ID=${CRVLT_SAS_BASE}
+fi
 TARGET_LUN_PATTERN="/dev/disk/by-id/${TARGET_DRV_ID}*"
 
 #=======================================================
@@ -114,8 +144,8 @@ ShowLunCounts(){
 	echo "MACH2_SAS_LUN_CNT=${MACH2_SAS_LUN_CNT}"
 	echo "TATSU_SAS_LUN_CNT=${TATSU_SAS_LUN_CNT}"
 	echo "CRVLT_SAS_LUN_CNT=${CRVLT_SAS_LUN_CNT}"
-	echo "CRVLT_SAS_LUN_CNT=${CRVLT_SAS_LUN_CNT}"
 	echo "OSPRY_ATA_LUN_CNT=${OSPRY_ATA_LUN_CNT}"
+	echo "OSPRY_SAS_LUN_CNT=${OSPRY_SAS_LUN_CNT}"
 	echo "ZFS_SPECIAL_LUN_CNT=${ZFS_SPECIAL_LUN_CNT}"
 	echo "ZFS_CACHE_LUN_CNT=${ZFS_CACHE_LUN_CNT}"
 	echo "ZFS_LOG_LUN_CNT=${ZFS_LOG_LUN_CNT}"
