@@ -11,7 +11,8 @@ JSON_LOG_DIR='json.logs'
 
 USER='manage'
 #TARGETS=("corvault-1a" "corvault-2a" "corvault-3a")
-TARGETS=("corvault30" "corvault31" "corvault32" "corvault33" "corvault34" "corvault35" "corvault36" "corvault37")
+#TARGETS=("corvault30" "corvault31" "corvault32" "corvault33" "corvault34" "corvault35" "corvault36" "corvault37")
+TARGETS=("lr01cvt-u18a" "lr01cvt-u14a" "lr01cvt-u10a" "lr01cvt-u05a" "lr01cvt-u01a")
 #TARGETS=("corvault-1a" )
 #TARGETS=("corvault-3a")
 
@@ -913,10 +914,8 @@ Create_2DG_16plus2_ADAPT() {
 	for TGT in ${TARGETS[*]}; do
 		CMD="add disk-group"
 		CMD="${CMD} type linear level adapt stripe-width 16+2 spare-capacity 40.0TiB interleaved-volume-count $LUN_COUNT"
-		#jPOOL1="assigned-to a disks 0.0-11,0.24-35,0.48-59,0.72-83,0.96-100 dg01"
-		#POOL2="assigned-to b disks 0.12-23,0.36-47,0.60-71,0.84-95,0.101-105 dg02"
-		POOL1="assigned-to a disks 0.3-11,0.24-35,0.48-59,0.72-83,0.96-100 dg01"
-		POOL2="assigned-to b disks 0.15-23,0.36-47,0.60-71,0.84-95,0.101-105 dg02"
+		POOL1="assigned-to a disks 0.0-11,0.24-35,0.48-59,0.72-83,0.96-100 dg01"
+		POOL2="assigned-to b disks 0.12-23,0.36-47,0.60-71,0.84-95,0.101-105 dg02"
 		printf "${TGT} ${CMD} ${POOL1} "
 		DoCmd ${TGT} ${CMD} ${POOL1} | jq -r '.status[]."response-type"'
 		printf "${TGT} ${CMD} ${POOL2} "
