@@ -92,6 +92,7 @@ LVM_STRIPE_WIDTH="2M"
 
 #=======================================================
 # Setup for some logging
+#SCRIPT_NAME="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
 THIS_SCRIPT="${THIS_SCRIPT:=$(realpath $0)}"
 THIS_SCRIPT_DIR="${THIS_SCRIPT_DIR:=$(dirname ${THIS_SCRIPT})}"
 THIS_SCRIPT_BASE_NAME="${THIS_SCRIPT_BASE_NAME:=$(basename ${THIS_SCRIPT} | sed -r 's/.sh$//g')}"
