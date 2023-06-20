@@ -52,7 +52,7 @@ new_analysis() {
 echo "Timestamp,JobName,Operation,BlockSize,ThreadCount,RunTime,IoDepth,IoEngine,FileSize,ReadIOPs,WriteIOPs,ReadLatMicroSec,WriteLatMicroSec,ReadBW(MiB),WriteBW(MiB)"
 for F in $(ls *.json)
 do
-	jq -r -f ./test.filter $F | tr -d '"'
+	jq -r -f ./test.filter $F  || echo $F | tr -d '"'
 done
 }
 
