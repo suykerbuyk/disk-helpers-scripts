@@ -1,0 +1,206 @@
+#git log --all --grep='Seagate' >Seagate.Sponsored.Zfs.Changes.txt
+commit 3e4ed4213d7b4e8892e9def8b06363391d8dbd60
+Author: rob-wing <98866084+rob-wing@users.noreply.github.com>
+Date:   Thu Apr 20 09:07:56 2023 -0800
+
+    Create zap for root vdev
+    
+    And add it to the AVZ, this is not backwards compatible with older pools
+    due to an assertion in spa_sync() that verifies the number of ZAPs of
+    all vdevs matches the number of ZAPs in the AVZ.
+    
+    Granted, the assertion only applies to #DEBUG builds - still, a feature
+    flag is introduced to avoid the assertion, com.klarasystems:vdev_zaps_v2
+    
+    Notably, this allows to get/set properties on the root vdev:
+    
+        % zpool set user:prop=value <pool> root-0
+    
+    Before this commit, it was already possible to get/set properties on
+    top-level vdevs with the syntax <type>-<vdev_id> (e.g. mirror-0):
+    
+        % zpool set user:prop=value <pool> mirror-0
+    
+    This syntax also applies to the root vdev as it is is of type 'root'
+    with a vdev_id of 0, root-0. The keyword 'root' as an alias for
+    'root-0'.
+    
+    The following tests have been added:
+    
+        - zpool get all properties from root vdev
+        - zpool set a property on root vdev
+        - verify root vdev ZAP is created
+    
+    Reviewed-by: Brian Behlendorf <behlendorf1@llnl.gov>
+    Signed-off-by: Rob Wing <rob.wing@klarasystems.com>
+    Sponsored-by: Seagate Technology
+    Submitted-by: Klara, Inc.
+    Closes #14405
+
+commit ff73574cd83580e4dd5905a43695bd5d0f4911b3
+Author: Rob N <rob.norris@klarasystems.com>
+Date:   Fri Apr 7 03:52:50 2023 +1000
+
+    vdev: expose zfs_vdev_max_ms_shift as a module parameter
+    
+    Reviewed-by: Brian Behlendorf <behlendorf1@llnl.gov>
+    Reviewed-by: Tino Reichardt <milky-zfs@mcmilk.de>
+    Reviewed-by: Alexander Motin <mav@FreeBSD.org>
+    Signed-off-by: Rob Norris <rob.norris@klarasystems.com>
+    Sponsored-by: Klara, Inc.
+    Sponsored-by: Seagate Technology LLC
+    Closes #14719
+
+commit ece7ab7e7de81a9a51923d7baa7db3577de4aace
+Author: Rob N <rob.norris@klarasystems.com>
+Date:   Fri Apr 7 03:31:19 2023 +1000
+
+    vdev: expose zfs_vdev_def_queue_depth as a module parameter
+    
+    It was previously available only to FreeBSD.
+    
+    Reviewed-by: Brian Behlendorf <behlendorf1@llnl.gov>
+    Reviewed-by: Tino Reichardt <milky-zfs@mcmilk.de>
+    Reviewed-by: Alexander Motin <mav@FreeBSD.org>
+    Signed-off-by: Rob Norris <rob.norris@klarasystems.com>
+    Sponsored-by: Klara, Inc.
+    Sponsored-by: Seagate Technology LLC
+    Closes #14718
+
+commit 69f024a56e25e9d1a220f9fa35e46c235aa5bf03
+Author: rob-wing <98866084+rob-wing@users.noreply.github.com>
+Date:   Mon Jan 23 12:14:25 2023 -0900
+
+    Configure zed's diagnosis engine with vdev properties
+    
+    Introduce four new vdev properties:
+        checksum_n
+        checksum_t
+        io_n
+        io_t
+    
+    These properties can be used for configuring the thresholds of zed's
+    diagnosis engine and are interpeted as <N> events in T <seconds>.
+    
+    When this property is set to a non-default value on a top-level vdev,
+    those thresholds will also apply to its leaf vdevs. This behavior can be
+    overridden by explicitly setting the property on the leaf vdev.
+    
+    Note that, these properties do not persist across vdev replacement. For
+    this reason, it is advisable to set the property on the top-level vdev
+    instead of the leaf vdev.
+    
+    The default values for zed's diagnosis engine (10 events, 600 seconds)
+    remains unchanged.
+    
+    Reviewed-by: Tony Hutter <hutter2@llnl.gov>
+    Reviewed-by: Brian Behlendorf <behlendorf1@llnl.gov>
+    Reviewed-by: Ryan Moeller <ryan@iXsystems.com>
+    Reviewed-by: Allan Jude <allan@klarasystems.com>
+    Signed-off-by: Rob Wing <rob.wing@klarasystems.com>
+    Sponsored-by: Seagate Technology LLC
+    Closes #13805
+
+commit 7a85f58db6c8a80cabd42d608fd5f5b8d7c301c6
+Author: Rob Wing <rob.wing@klarasystems.com>
+Date:   Tue Dec 20 21:52:26 2022 -0900
+
+    zpool-set: print error message when pool or vdev is not valid
+    
+    Reviewed-by: Tony Hutter <hutter2@llnl.gov>
+    Reviewed-by: Allan Jude <allan@klarasystems.com>
+    Reviewed-by: Brian Behlendorf <behlendorf1@llnl.gov>
+    Signed-off-by: Rob Wing <rob.wing@klarasystems.com>
+    Sponsored-by: Seagate Technology
+    Submitted-by: Klara, Inc.
+    Closes #14310
+
+commit a0276f70480c7341ad3ebdf04dfe97e3f5e71182
+Author: Rob Wing <rob.wing@klarasystems.com>
+Date:   Tue Dec 20 21:33:11 2022 -0900
+
+    zpool-set: update usage text
+    
+    Reviewed-by: Tony Hutter <hutter2@llnl.gov>
+    Reviewed-by: Allan Jude <allan@klarasystems.com>
+    Reviewed-by: Brian Behlendorf <behlendorf1@llnl.gov>
+    Signed-off-by: Rob Wing <rob.wing@klarasystems.com>
+    Sponsored-by: Seagate Technology
+    Submitted-by: Klara, Inc.
+    Closes #14310
+
+commit 6f2ffd272cfd4487816174bf37c30b56a6443705
+Author: rob-wing <98866084+rob-wing@users.noreply.github.com>
+Date:   Wed Jan 11 14:14:35 2023 -0900
+
+    zpool: do guid-based comparison in is_vdev_cb()
+    
+    is_vdev_cb() uses string comparison to find a matching vdev and
+    will fallback to comparing the guid via a string.  These changes
+    drop the string comparison and compare the guids instead.
+    
+    Reviewed-by: Tony Hutter <hutter2@llnl.gov>
+    Reviewed-by: Richard Yao <richard.yao@alumni.stonybrook.edu>
+    Reviewed-by: Allan Jude <allan@klarasystems.com>
+    Signed-off-by: Rob Wing <rob.wing@klarasystems.com>
+    Co-authored-by: Rob Wing <rob.wing@klarasystems.com>
+    Sponsored-by: Seagate Technology
+    Submitted-by: Klara, Inc.
+    Closes #14311
+
+commit 2c590bdede78c5aca10c0cf4284b59c006f4a30d
+Author: Rob Wing <rob.wing@klarasystems.com>
+Date:   Mon Nov 14 07:57:53 2022 +0000
+
+    ZTS: test reported checksum errors for ZED
+    
+    Test checksum error reporting to ZED via the call paths
+    vdev_raidz_io_done_unrecoverable() and zio_checksum_verify().
+    
+    Sponsored-by: Seagate Technology LLC
+    Reviewed-by: Richard Yao <richard.yao@alumni.stonybrook.edu>
+    Reviewed-by: Brian Behlendorf <behlendorf1@llnl.gov>
+    Signed-off-by: Rob Wing <rob.wing@klarasystems.com>
+    Closes #14190
+
+commit 7a75f74cec06a57b327b351ae4184400ff4e7cb2
+Author: Rob Wing <rob.wing@klarasystems.com>
+Date:   Mon Nov 14 07:40:38 2022 +0000
+
+    Bump checksum error counter before reporting to ZED
+    
+    The checksum error counter is incremented after reporting to ZED. This
+    leads ZED to receiving a checksum error report with 0 checksum errors.
+    
+    To avoid this, bump the checksum error counter before reporting to ZED.
+    
+    Sponsored-by: Seagate Technology LLC
+    Reviewed-by: Richard Yao <richard.yao@alumni.stonybrook.edu>
+    Reviewed-by: Brian Behlendorf <behlendorf1@llnl.gov>
+    Signed-off-by: Rob Wing <rob.wing@klarasystems.com>
+    Closes #14190
+
+commit 16f0fdadddcc7562ddf475f496a434b9ac94b0f7
+Author: Mariusz Zaborski <mariusz.zaborski@klarasystems.com>
+Date:   Thu Nov 10 22:37:12 2022 +0100
+
+    Allow to control failfast
+    
+    Linux defaults to setting "failfast" on BIOs, so that the OS will not
+    retry IOs that fail, and instead report the error to ZFS.
+    
+    In some cases, such as errors reported by the HBA driver, not
+    the device itself, we would wish to retry rather than generating
+    vdev errors in ZFS. This new property allows that.
+    
+    This introduces a per vdev option to disable the failfast option.
+    This also introduces a global module parameter to define the failfast
+    mask value.
+    
+    Reviewed-by: Brian Behlendorf <behlendorf1@llnl.gov>
+    Co-authored-by: Allan Jude <allan@klarasystems.com>
+    Signed-off-by: Allan Jude <allan@klarasystems.com>
+    Signed-off-by: Mariusz Zaborski <mariusz.zaborski@klarasystems.com>
+    Sponsored-by: Seagate Technology LLC
+    Submitted-by: Klara, Inc.
+    Closes #14056

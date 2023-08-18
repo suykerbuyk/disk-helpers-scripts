@@ -211,7 +211,7 @@ for IOENGINE in libaio ; do
 						echo "Running $TEST"
 						fio --directory=/${TESTFS} \
 						    --name="${TEST}" \
-						    --size=1T \
+						    --size=100G \
 						    --rw=$PAT \
 						    --group_reporting=1 \
 						    --bs=$BLK \
@@ -240,4 +240,3 @@ zfs get all ${POOL_NAME} >${LOGDIR}/zfs.props.log
 zpool get all ${POOL_NAME} >${LOGDIR}/zpool.props.log
 #zdb -Lbbbs ${POOL_NAME} >${LOGDIR}/zdb.Lbbbs.log
 cd ${LOGDIR} && ../analyze.fio.json.sh | tee ${LOGDIR}.csv ; cd -
-
