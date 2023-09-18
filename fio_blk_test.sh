@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 POOL_NAME=cvt
-LUN_PATTERN="/dev/disk/by-id/wwn-0x600c0ff000*"
+#LUN_PATTERN="/dev/disk/by-id/wwn-0x600c0ff000*"
+LUN_PATTERN="/dev/disk/by-id/scsi-SSEAGATE_ST18000NM004J_ZR5046D00000C2022HZJ*"
 LOGDIR=test
 
 if [ ! -d ${LOGDIR} ]; then
@@ -84,16 +85,16 @@ for IOENGINE in libaio io_uring ; do
 			for PAT in 'write' 'read' 'randrw' 'randread' 'randwrite'; do
 				for BLK in 4096 8192 16384 32768 131072 262144 524288 1048576 4194304 16777216; do
 				#for BLK in 1024k 8192k 32768k; do
-					for BLKDEV in $(ls $LUN_PATTERN | sed 's:/dev/disk/by-id/::g')
+					for BLKDEV in $(ls $LUN_PATTERN | sed 's:/dev/disk/by-id/::g' | head -10)
 					do
 						BLKDEV_KDEV="$(readlink /dev/disk/by-id/${BLKDEV} |  tr -d '.|\/')"
 						BLKDEV_NAME="${BLKDEV}_${BLKDEV_KDEV}"
 						BLKDEV_NAME="$(echo $BLKDEV_NAME | sed 's/-/_/g')"
 						TEST="${BLKDEV_NAME}-${IOENGINE}-${IODEPTH}-${PAT}-${BLK}-${JOBS}.fio.json"
 						echo "Running $TEST"
-						/root/fio --filename=/dev/disk/by-id/${BLKDEV} \
+						fio --filename=/dev/disk/by-id/${BLKDEV} \
 						    --name="${TEST}" \
-						    --size=128G \
+						    --size=1024G \
 						    --rw=$PAT \
 						    --group_reporting=1 \
 						    --bs=$BLK \
