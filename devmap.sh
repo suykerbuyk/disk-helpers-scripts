@@ -6,13 +6,15 @@ MACH2='wwn-0x6000c500a'
 EVANS='wwn-0x5000c500a'
 TATSU='wwn-0x5000c5009'
 X2SAS='wwn-0x6000c500d'
+OTHER='wwn-0x5000c500d'
 
 #for x in $(./devmap.sh  | awk -F ' ' '{print $2}' | grep -v ':'); do dd if=/dev/zero of=/dev/disk/by-id/${x} bs=1M & done
 
-enclosure_sg=$(lsscsi -g \
-   | grep -i enclos | grep -i SEAGATE \
-   | awk '{ print $7 }' | tail -1)
 map_disk_slots() { 
+for enclosure_sg in $(lsscsi -g \
+   | grep -i enclos | grep -i SEAGATE \
+   | awk '{ print $7 }')
+do
 	for dev in $(ls /dev/disk/by-id/ | grep "$1" | grep -v part) 
 	do
 
@@ -30,12 +32,14 @@ map_disk_slots() {
            | sed 's/^.*device slot number: //g')
        device_slot=$(printf "%03d" $device_slot)
        kdev=$(readlink -f $d)
-       echo "  slot=$device_slot $dev sas_addr=$sas_address s/n=$this_sn $kdev"
-   done | sort
+       echo " sg=${enclosure_sg} slot=$device_slot $dev sas_addr=$sas_address s/n=$this_sn $kdev"
+   done 
+done
 }
-for DSK_TYPE in MACH2 EVANS TATSU X2SAS
+for DSK_TYPE in MACH2 EVANS TATSU X2SAS OTHER
 do
 	DSK_PREFIX="${!DSK_TYPE}"
 	echo "$DSK_TYPE ($DSK_PREFIX):"
 	map_disk_slots "${DSK_PREFIX}"
 done
+
