@@ -6,40 +6,48 @@ MACH2='wwn-0x6000c500a'
 EVANS='wwn-0x5000c500a'
 TATSU='wwn-0x5000c5009'
 X2SAS='wwn-0x6000c500d'
-OTHER='wwn-0x5000c500d'
+#OTHER='wwn-0x5000c500d'
+OTHER='scsi-SSEAGATE_ST18000NM004J'
 
 #for x in $(./devmap.sh  | awk -F ' ' '{print $2}' | grep -v ':'); do dd if=/dev/zero of=/dev/disk/by-id/${x} bs=1M & done
 
-map_disk_slots() { 
-for enclosure_sg in $(lsscsi -g \
-   | grep -i enclos | grep -i SEAGATE \
-   | awk '{ print $7 }')
+SGDEVS=""
+for ENC in $(lsscsi -g \
+   | grep -Ei 'enclos.*SEAGATE' \
+   | awk '{ print $7 }' )
+do SGDEVS="${SGDEVS} $ENC" ; done
+
+if [[ "X" == "X${SGDEVS}" ]]; then
+	echo "No matching enclosure devices found!"
+  exit 1
+fi
+
+for DEV in $(ls /dev/disk/by-id/ | grep "${OTHER}" | grep -v part )
 do
-	for dev in $(ls /dev/disk/by-id/ | grep "$1" | grep -v part) 
+	DSK="/dev/disk/by-id/$DEV"
+	this_sn=$(sg_vpd --page=0x80 $DSK \
+		| grep 'Unit serial number:' \
+		| awk -F ' ' '{print $4}')
+	sas_address=$(sg_vpd --page=0x83 ${DSK} \
+		| grep -A 3 'Target port:' \
+		| grep "0x" | tr -d ' ' \
+		| cut -c 3-)
+	kdev=$(readlink -f $DSK)
+  device_slot=""
+  for ENC in ${SGDEVS}
 	do
-
-       d="/dev/disk/by-id/$dev"
-       this_sn=$(sg_vpd --page=0x80 $d \
-           | grep 'Unit serial number:' \
-           | awk -F ' ' '{print $4}')
-       sas_address=$(sg_vpd --page=0x83 ${d} \
-           | grep -A 3 'Target port:' \
-           | grep "0x" | tr -d ' ' \
-           | cut -c 3-)
-       device_slot=$(sg_ses -p 0xa ${enclosure_sg} \
-           | grep -B 8 -i $sas_address  \
-           | grep 'device slot number:'  \
-           | sed 's/^.*device slot number: //g')
-       device_slot=$(printf "%03d" $device_slot)
-       kdev=$(readlink -f $d)
-       echo " sg=${enclosure_sg} slot=$device_slot $dev sas_addr=$sas_address s/n=$this_sn $kdev"
-   done 
+  	device_slot=$(sg_ses -p 0xa ${ENC} \
+			| grep -A 8 'Element index: ' \
+			| grep -B 6 -i $sas_address \
+			| grep 'device slot number:' \
+			| sed 's/^.*device slot number: //g' )
+		if [[ "X" != "X${device_slot}" ]] ; then
+			break
+		fi
+	done
+	if [[ "X" == "X${device_slot}" ]] ; then
+		echo "Error: Could not find $sas_address"
+	fi
+	device_slot=$(printf "%03d\n" ${device_slot})
+	printf " sg=${ENC}\tslot=$device_slot\t$dev\ts/n=$this_sn\tsas_addr=$sas_address\t$kdev\t$DEV\n"
 done
-}
-for DSK_TYPE in MACH2 EVANS TATSU X2SAS OTHER
-do
-	DSK_PREFIX="${!DSK_TYPE}"
-	echo "$DSK_TYPE ($DSK_PREFIX):"
-	map_disk_slots "${DSK_PREFIX}"
-done
-
