@@ -7,13 +7,14 @@ EVANS='wwn-0x5000c500a'
 TATSU='wwn-0x5000c5009'
 X2SAS='wwn-0x6000c500d'
 #OTHER='wwn-0x5000c500d'
-OTHER='scsi-SSEAGATE_ST18000NM004J'
+#OTHER='scsi-SSEAGATE_ST18000NM004J'
+OTHER='scsi-SWDC_WUH722020BL5204'
 
 #for x in $(./devmap.sh  | awk -F ' ' '{print $2}' | grep -v ':'); do dd if=/dev/zero of=/dev/disk/by-id/${x} bs=1M & done
 
 SGDEVS=""
 for ENC in $(lsscsi -g \
-   | grep -Ei 'enclos.*SEAGATE' \
+   | grep -Ei 'enclos.*[SEAGATE\|HGST]' \
    | awk '{ print $7 }' )
 do SGDEVS="${SGDEVS} $ENC" ; done
 
