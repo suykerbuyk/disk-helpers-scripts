@@ -20,13 +20,13 @@ OSPRY_SAS_BASE='wwn-0x6000c500d'
 
 X2LUN_SEP='0001000000000000'
 
-POOL_NAME=STXTEST
+POOL_NAME=altlabs02
 
 SPEC_VDEV=/dev/nvme0n1
 TARGET="${CRVLT_WWN_BASE}"
 LUN_PATTERN="/dev/disk/by-id/${TARGET}*"
 MIN_ZFS_RECORD_SIZE=131072
-LOGDIR="cvt_tuned_$(date --iso-8601)_post_init_special_vdev_fixed_rec_2097152"
+LOGDIR="altlabs02_$(date --iso-8601)_draid2_24"
 
 SCRIPT_NAME="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
 
@@ -34,10 +34,9 @@ if [ ! -d ${LOGDIR} ]; then
 	mkdir ${LOGDIR}
 fi
 
-LUN_COUNT=$(ls $LUN_PATTERN | grep -v part| wc -l )
-echo "LUN_COUNT=$LUN_COUNT"
+#LUN_COUNT=$(ls $LUN_PATTERN | grep -v part| wc -l )
+#echo "LUN_COUNT=$LUN_COUNT"
 cp "${SCRIPT_NAME}" "${LOGDIR}/"
-
 
 wipe_zfs_pools() {
 	POOL_BASE_NAME=$(echo $POOL_NAME | awk -F '_' '{print $1}')
@@ -149,7 +148,6 @@ create_individual_pools() {
 		IDX=$((IDX+1))
 	done
 }
-
 #rescan_scsi_bus
 #create_individual_pools
 #create_5u84_draid_zpool
@@ -158,9 +156,7 @@ create_individual_pools() {
 #create_raidz2_zpool
 #create_raidz1_corvault_zpool
 #clear all dmesg history
-#dmesg -C
-#zpool create osprey draid2:8d:16c:0s /dev/disk/by-partlabel/${POOL_NAME}_* -O recordsize=1M -O atime=off -O dnodesize=auto -o ashift=12 cache /dev/nvme0n1
-echo 0x0006020A >/sys/module/mpt3sas/parameters/logging_level
+dmesg -C
 echo "Start: $SCRIPT_NAME">/dev/kmsg
 #echo 1 > /sys/module/zfs/parameters/zfs_disable_failfast
 #echo 32 >/sys/module/zfs/parameters/zfs_vdev_async_read_max_active
@@ -168,7 +164,6 @@ echo "Start: $SCRIPT_NAME">/dev/kmsg
 #echo 2048 >/sys/module/zfs/parameters/zfs_vdev_max_active
 zpool events -c
 echo "Start: $SCRIPT_NAME">/dev/kmsg
-create_raidz1_corvault_zpool
 echo $((32 * 1024 * 1024 *1024)) > /sys/module/zfs/parameters/zfs_arc_max
 echo $((32 * 1024 * 1024 *1024)) > /sys/module/zfs/parameters/zfs_arc_min
 echo 8192 >/sys/module/zfs/parameters/zfs_vdev_ms_count_limit || true
@@ -185,7 +180,6 @@ echo 51539607552 >/sys/module/zfs/parameters/zfs_dirty_data_max || true
 echo 8 >/sys/module/spl/parameters/spl_kmem_cache_kmem_threads || true
 echo 64 >/sys/module/spl/parameters/spl_kmem_cache_obj_per_slab || true
 echo 1024 >/sys/module/spl/parameters/spl_kmem_cache_max_size || true
-create_raidz1_corvault_zpool
 
 echo 0x0006020A >/sys/module/mpt3sas/parameters/logging_level
 #for IOENGINE in libaio io_uring; do
@@ -203,15 +197,15 @@ for IOENGINE in libaio ; do
 						TEST="${POOL}-${IOENGINE}-${IODEPTH}-${PAT}-${BLK_NAME}-${JOBS}.fio.json"
 						TESTFS="${POOL}/TEST/BLK_${BLK_NAME}"
 						echo "Creating ${TESTFS}"
-						#[ "${BLK}" -lt ${MIN_ZFS_RECORD_SIZE} ] && BLK=${MIN_ZFS_RECORD_SIZE}
-						#echo "BLK is now $BLK"
-						#zfs create -p -o recordsize=${BLK} -o compression=off ${TESTFS}
-						zfs create -p -o recordsize=2097152 -o compression=off ${TESTFS}
+						[ "${BLK}" -lt ${MIN_ZFS_RECORD_SIZE} ] && BLK=${MIN_ZFS_RECORD_SIZE}
+						echo "BLK is now $BLK"
+						zfs create -p -o recordsize=${BLK} -o compression=off ${TESTFS}
+						#zfs create -p -o recordsize=2097152 -o compression=off ${TESTFS}
 						zpool wait -t initialize ${POOL}
 						echo "Running $TEST"
 						fio --directory=/${TESTFS} \
 						    --name="${TEST}" \
-						    --size=100G \
+						    --size=512G \
 						    --rw=$PAT \
 						    --group_reporting=1 \
 						    --bs=$BLK \
