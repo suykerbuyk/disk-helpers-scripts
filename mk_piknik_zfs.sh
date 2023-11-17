@@ -27,16 +27,26 @@ mk_single_jbod() {
 	ZPOOL_PROPS="-o ashift=${ZPOOL_ASHIFT} -o comment=\"${ZPOOL_COMMENT}\" -o autotrim=${ZPOOL_AUTO_TRIM}"
 	zpool create "${ZPOOL_NAME}" draid2:8d:168c:8s  ${ZPOOL_PROPS} ${ZFS_PROPS} ${BACKING_VDEVS}
 }
-mk_draid_jbods(){
-	. ./disk.groups
+mk_24_vdev_draid2_jbods(){
+	. ./altlabs02-draid2-24-disk.map
 	ZFS_PROPS="-O atime=${ZFS_ATIME} -O recordsize=${ZFS_RECORD_SIZE}\
 	 -O dnodesize=${ZFS_DNODE_SIZE} -O sync=${ZFS_SYNC} -O compression=${ZFS_COMPRESSION}"
 	ZPOOL_PROPS="-o ashift=${ZPOOL_ASHIFT} -o comment=\"${ZPOOL_COMMENT}\" -o autotrim=${ZPOOL_AUTO_TRIM}"
 	zpool create "${ZPOOL_NAME}" ${ZPOOL_PROPS} ${ZFS_PROPS}\
-		draid2:8d:84c:4s ${DSKGRP1}\
-		draid2:8d:84c:4s ${DSKGRP2}\
-		draid2:8d:84c:4s ${DSKGRP3}\
-		draid2:8d:84c:4s ${DSKGRP4}
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP00}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP01}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP02}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP03}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP04}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP05}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP06}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP07}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP08}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP09}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP10}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP11}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP12}\
+		draid2:8d:24c:2s ${DRAID2_24_DSKGRP13}
 }
 mk_4_5u84_raidz2() {
 	. ./altlabs02-10disk-raidz2.map
@@ -78,4 +88,5 @@ mk_4_5u84_raidz2() {
 		raidz2 ${RAIDZ2_10_DSKGRP31}\
 		spare ${RAIDZ2_10_SPARES}
 }
-mk_4_5u84_raidz2
+#mk_4_5u84_raidz2
+mk_24_vdev_draid2_jbods
