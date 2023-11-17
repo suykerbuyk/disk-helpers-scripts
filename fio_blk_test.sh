@@ -2,7 +2,8 @@
 set -e
 POOL_NAME=cvt
 #LUN_PATTERN="/dev/disk/by-id/wwn-0x600c0ff000*"
-LUN_PATTERN="/dev/disk/by-id/scsi-SSEAGATE_ST18000NM004J_ZR5046D00000C2022HZJ*"
+#LUN_PATTERN="/dev/disk/by-id/scsi-SSEAGATE_ST18000NM004J_ZR5046D00000C2022HZJ*"
+LUN_PATTERN="/dev/disk/by-id/scsi-35000c500d*"
 LOGDIR=test
 
 if [ ! -d ${LOGDIR} ]; then
@@ -85,7 +86,7 @@ for IOENGINE in libaio io_uring ; do
 			for PAT in 'write' 'read' 'randrw' 'randread' 'randwrite'; do
 				for BLK in 4096 8192 16384 32768 131072 262144 524288 1048576 4194304 16777216; do
 				#for BLK in 1024k 8192k 32768k; do
-					for BLKDEV in $(ls $LUN_PATTERN | sed 's:/dev/disk/by-id/::g' | head -10)
+					for BLKDEV in $(ls $LUN_PATTERN | sed 's:/dev/disk/by-id/::g' | head -30)
 					do
 						BLKDEV_KDEV="$(readlink /dev/disk/by-id/${BLKDEV} |  tr -d '.|\/')"
 						BLKDEV_NAME="${BLKDEV}_${BLKDEV_KDEV}"
@@ -101,7 +102,7 @@ for IOENGINE in libaio io_uring ; do
 						    --direct=1 \
 						    --numjobs=$JOBS \
 						    --time_based=1 \
-						    --runtime=30 \
+						    --runtime=60 \
 						    --random_generator=tausworthe64 \
 						    --iodepth=$IODEPTH \
 						    --ioengine=$IOENGINE \
