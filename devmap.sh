@@ -51,9 +51,11 @@ do
                 echo "Error: Could not find $sas_address"
         fi
         device_slot=$(printf "%03d\n" ${device_slot})
-        #printf " sg=${ENC}\tslot=$device_slot\t$dev\ts/n=$this_sn\tsas_addr=$sas_address\t$kdev\t$DEV"
-        printf "sg=${ENC}\tslot=$device_slot\t$dev\ts/n=$this_sn\tsas_addr=$sas_address\t$kdev"
+	ENC_PADDED="$(printf "%-12s" ${ENC})"
+	KDEV_PADDED=$(printf "%-10s" ${kdev})
+	ENC_ID="$(sg_inq $ENC | grep 'Product identification:\|Unit serial number:' | awk -F ':' '{print $2}' | tr -d ' ' | tr '\n' ' ')"
+        printf "${ENC_ID} sg=${ENC_PADDED}slot=${device_slot} ${dev} s/n=$this_sn sas_addr=$sas_address $KDEV_PADDED"
         KDEV=$(echo "$kdev" | awk -F '/' '{print $3}')       
         EXTRA="$(ls -lah /dev/disk/by-id/ | grep -E ${KDEV}$ | grep -v part | awk '{print $9}' | sort |  tr '\n' '\t')"
-        printf "\t${EXTRA}\n"
+        printf "  ${EXTRA}\n"
 done
