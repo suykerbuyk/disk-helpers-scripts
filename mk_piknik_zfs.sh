@@ -88,5 +88,23 @@ mk_4_5u84_raidz2() {
 		raidz2 ${RAIDZ2_10_DSKGRP31}\
 		spare ${RAIDZ2_10_SPARES}
 }
+mk_individual_raidz_pools(){
+	. ./disk.map
+	ZFS_PROPS="-O atime=${ZFS_ATIME} -O recordsize=${ZFS_RECORD_SIZE}\
+	 -O dnodesize=${ZFS_DNODE_SIZE} -O sync=${ZFS_SYNC} -O compression=${ZFS_COMPRESSION}"
+	ZPOOL_PROPS="-o ashift=${ZPOOL_ASHIFT} -o comment=\"${ZPOOL_COMMENT}\" -o autotrim=${ZPOOL_AUTO_TRIM}"
+	zpool create "${HOSTNAME}-01" ${ZPOOL_PROPS} ${ZFS_PROPS}\
+		raidz2 $RAIDZ2_10_HLF1016437G00LR_00\
+		raidz2 $RAIDZ2_10_HLF1016437G00LR_01\
+		raidz2 $RAIDZ2_10_HLF1016437G00LR_02\
+		raidz2 $RAIDZ2_10_HLF1016437G00LR_03\
+		raidz2 $RAIDZ2_10_HLF1016437G00LR_04\
+		raidz2 $RAIDZ2_10_HLF1016437G00LR_05\
+		raidz2 $RAIDZ2_10_HLF1016437G00LR_06\
+		raidz2 $RAIDZ2_10_HLF1016437G00LR_07\
+		raidz2 $RAIDZ2_10_HLF1016437G00LR_06\
+		spare  $SPARES_HLF1016437G00LR
+}
 #mk_4_5u84_raidz2
-mk_24_vdev_draid2_jbods
+#mk_24_vdev_draid2_jbods
+mk_individual_raidz_pools
