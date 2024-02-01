@@ -54,8 +54,12 @@ do
 	ENC_PADDED="$(printf "%-12s" ${ENC})"
 	KDEV_PADDED=$(printf "%-10s" ${kdev})
 	ENC_ID="$(sg_inq $ENC | grep 'Product identification:\|Unit serial number:' | awk -F ':' '{print $2}' | tr -d ' ' | tr '\n' ' ')"
-        printf "${ENC_ID} sg=${ENC_PADDED}slot=${device_slot} ${dev} s/n=$this_sn sas_addr=$sas_address $KDEV_PADDED"
+	ENC_SERIAL=$(echo $ENC_ID | awk '{print $2}')
+	#ENC_ID="$(sg_inq $ENC | grep 'Product identification:\|Unit serial number:' | awk -F ':' '{print $2}' | tr -d ' ' | tr -d '\n')"
         KDEV=$(echo "$kdev" | awk -F '/' '{print $3}')       
         EXTRA="$(ls -lah /dev/disk/by-id/ | grep -E ${KDEV}$ | grep -v part | awk '{print $9}' | sort |  tr '\n' '\t')"
-        printf "  ${EXTRA}\n"
+	SCSI_PATH_ID=$(echo $EXTRA | awk '{print $1}')
+	WWN_PATH_ID=$(echo $EXTRA | awk '{print $2}')
+        #printf "${ENC_ID} sg=${ENC_PADDED}slot=${device_slot} ${dev} s/n=$this_sn sas_addr=$sas_address $KDEV_PADDED ${EXTRA}\n"
+	printf "alias ${ENC_SERIAL}_${device_slot}_${this_sn}  /dev/disk/by-id/${SCSI_PATH_ID} # ${KDEV_PADDED} ${ENC_PADDED} /dev/disk/by-id/${WWN_PATH_ID} sas_addr=${sas_address}\n"
 done
