@@ -20,13 +20,14 @@ OSPRY_SAS_BASE='wwn-0x6000c500d'
 
 X2LUN_SEP='0001000000000000'
 
-POOL_NAME=altlabs02
+#POOL_NAME=altlabs02
+POOL_NAME="cl-al-710cd8-01"
 
 SPEC_VDEV=/dev/nvme0n1
 TARGET="${CRVLT_WWN_BASE}"
 LUN_PATTERN="/dev/disk/by-id/${TARGET}*"
 MIN_ZFS_RECORD_SIZE=131072
-LOGDIR="altlabs02_$(date --iso-8601)_draid2_24"
+LOGDIR="cl-al-710cd8-01_$(date --iso-8601)_work_10"
 
 SCRIPT_NAME="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
 
