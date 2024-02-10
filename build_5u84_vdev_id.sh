@@ -1,6 +1,31 @@
 #!/bin/env bash
 set -e
 
+ZPOOL_BASE_NAME="ZPOOL_${HOSTNAME}"
+#ZPOOL Options
+ZPOOL_ASHIFT="12"
+ZPOOL_AUTO_TRIM="on"
+ZPOOL_COMMENT="Test_Pool"
+
+#Root ZFS File system options
+ZFS_RECORD_SIZE="$((1024*1024))"
+ZFS_ATIME='off'
+ZFS_COMPRESSION='off'
+ZFS_DNODE_SIZE='auto'
+ZFS_SYNC='disabled'
+ZFS_MAX_RECORD_SIZE="$((1024*1024*16))"
+ZFS_SPECIAL_SMALL_BLOCK_SIZE="128k"
+
+ZPOOL_OPTS=" \
+	-o ashift=${ZPOOL_ASHIFT} \
+	-o autotrim=${ZPOOL_AUTO_TRIM} \
+	-o comment=${ZPOOL_COMMENT}"
+ZFS_OPTS=" \
+	-O atime=${ZFS_ATIME} \
+	-O compression=${ZFS_COMPRESSION} \
+	-O dnodesize=${ZFS_DNODE_SIZE} \
+	-O recordsize=${ZFS_RECORD_SIZE} \
+	-O sync=${ZFS_SYNC}"
 
 build_vdev_id_conf() {
 	echo "Building temporary map of enclosure information"
@@ -151,19 +176,24 @@ create_raidz2_scripts(){
 }
 create_draid_scripts(){
 	echo "Generating mk_draid.sh script"
-	[ -f 'mk_draid.sh' ] && rm mk_draid.sh
+	OFILE='mk_draid.sh'
+	[ -f "${OFILE}" ] && rm "${OFILE}"
+	echo "zpool create ${ZPOOL_BASE_NAME} \\">>"${OFILE}"
+     	echo "${ZPOOL_OPTS} \\" >>"${OFILE}"
+	echo "${ZFS_OPTS} \\" >>"${OFILE}"
 	ENCLOSURES="$(cat vdev_id.conf | awk '{print $2}' | awk -F '-' '{print $1}  ' | sort -u | tr '\n' ' ')"
 	for ENC in $ENCLOSURES
 	do
 		DISKS="$(cat vdev_id.conf | grep ${ENC} | awk '{print $2}' | sort -u | tr '\n' ' ')"
-		printf "raidz2:8d:84c "\"
+		echo -n "draid2:8d:84c:4s " >>"${OFILE}"
 		for DSK in $DISKS
 		do
-			printf " \\ \n"
-			printf "/dev/disk/by-vdev/$DSK"
+			echo " \\" >>mk_draid.sh
+			echo -n "/dev/disk/by-vdev/$DSK" >>"${OFILE}"
 		done
-		printf "\"\n"
-	done >>mk_draid.sh
+		echo >>"${OFILE}"
+	done 
+	chmod +x "${OFILE}"
 }
 build_vdev_id_conf
 build_vdev_maps
