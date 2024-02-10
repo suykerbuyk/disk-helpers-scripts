@@ -1,5 +1,5 @@
 #!/bin/bash
-POOL_NAME="cl-al-710cd8"
+POOL_NAME="tank"
 #LUN_PATTERN="/dev/disk/by-id/wwn-0x5000c500d*"
 LUN_PATTERN="/dev/disk/by-vdev/HLF1016437G00*"
 #SPECIAL_VDEVS="$(ls /dev/disk/by-id | grep nvme-KCM6XRUL | grep -v part | grep -ve '_1$' | tr '\n' ' ')"
