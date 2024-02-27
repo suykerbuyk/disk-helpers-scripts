@@ -21,13 +21,13 @@ OSPRY_SAS_BASE='wwn-0x6000c500d'
 X2LUN_SEP='0001000000000000'
 
 #POOL_NAME=altlabs02
-POOL_NAME="cl-al-710cd8-01"
+POOL_NAME="ZPOOL_${HOSTNAME}"
 
 SPEC_VDEV=/dev/nvme0n1
 TARGET="${CRVLT_WWN_BASE}"
 LUN_PATTERN="/dev/disk/by-id/${TARGET}*"
-MIN_ZFS_RECORD_SIZE=131072
-LOGDIR="cl-al-710cd8-01_$(date --iso-8601)_work_10"
+MIN_ZFS_RECORD_SIZE=32768
+LOGDIR="${HOSTNAME}_$(date --iso-8601)_336_2draid2_stripe_blkisrec_8d-4s_with_spec"
 
 SCRIPT_NAME="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
 
@@ -164,45 +164,46 @@ echo "Start: $SCRIPT_NAME">/dev/kmsg
 #echo 32 >/sys/module/zfs/parameters/zfs_vdev_async_write_max_active
 #echo 2048 >/sys/module/zfs/parameters/zfs_vdev_max_active
 zpool events -c
-echo "Start: $SCRIPT_NAME">/dev/kmsg
 echo $((32 * 1024 * 1024 *1024)) > /sys/module/zfs/parameters/zfs_arc_max
 echo $((32 * 1024 * 1024 *1024)) > /sys/module/zfs/parameters/zfs_arc_min
-echo 8192 >/sys/module/zfs/parameters/zfs_vdev_ms_count_limit || true
-echo 16777216 >/sys/module/zfs/parameters/zfs_vdev_aggregation_limit || true
-echo 16777216 >/sys/module/zfs/parameters/zfs_max_recordsize || true
-echo 256 >/sys/module/zfs/parameters/zfs_vdev_def_queue_depth || true
-echo 32 >/sys/module/zfs/parameters/zfs_vdev_async_read_max_active || true
-echo 64 >/sys/module/zfs/parameters/zfs_vdev_sync_read_max_active || true
-echo 64 >/sys/module/zfs/parameters/zfs_vdev_async_write_max_active || true
-echo 64 >/sys/module/zfs/parameters/zfs_vdev_sync_write_max_active || true
-echo 64 >/sys/module/zfs/parameters/zfs_commit_timeout_pct || true
-echo 16777216 >/sys/module/zfs/parameters/metaslab_aliquot || true
-echo 51539607552 >/sys/module/zfs/parameters/zfs_dirty_data_max || true
-echo 8 >/sys/module/spl/parameters/spl_kmem_cache_kmem_threads || true
-echo 64 >/sys/module/spl/parameters/spl_kmem_cache_obj_per_slab || true
-echo 1024 >/sys/module/spl/parameters/spl_kmem_cache_max_size || true
-
+#echo 8192 >/sys/module/zfs/parameters/zfs_vdev_ms_count_limit || true
+#echo 16777216 >/sys/module/zfs/parameters/zfs_vdev_aggregation_limit || true
+#echo 16777216 >/sys/module/zfs/parameters/zfs_max_recordsize || true
+#echo 256 >/sys/module/zfs/parameters/zfs_vdev_def_queue_depth || true
+#echo 32 >/sys/module/zfs/parameters/zfs_vdev_async_read_max_active || true
+#echo 64 >/sys/module/zfs/parameters/zfs_vdev_sync_read_max_active || true
+#echo 64 >/sys/module/zfs/parameters/zfs_vdev_async_write_max_active || true
+#echo 64 >/sys/module/zfs/parameters/zfs_vdev_sync_write_max_active || true
+#echo 64 >/sys/module/zfs/parameters/zfs_commit_timeout_pct || true
+#echo 16777216 >/sys/module/zfs/parameters/metaslab_aliquot || true
+#echo 51539607552 >/sys/module/zfs/parameters/zfs_dirty_data_max || true
+#echo 8 >/sys/module/spl/parameters/spl_kmem_cache_kmem_threads || true
+#echo 64 >/sys/module/spl/parameters/spl_kmem_cache_obj_per_slab || true
+#echo 1024 >/sys/module/spl/parameters/spl_kmem_cache_max_size || true
 echo 0x0006020A >/sys/module/mpt3sas/parameters/logging_level
 #for IOENGINE in libaio io_uring; do
 for IOENGINE in libaio ; do
 	#for IODEPTH in 1 8 16 32; do
-	for IODEPTH in 1 16 32; do
+	for IODEPTH in 1 32; do
 		#for JOBS in 1 4 8 16 32; do
-		for JOBS in 1 4 8 16; do
+		for JOBS in 8 16 32; do
 			for PAT in 'write' 'read' 'randrw' 'randread' 'randwrite'; do
 				#for BLK in 4096 8192 16384 32768 131072 262144 524288 1048576 4194304 16777216; do
 				for BLK in 4096 8192 16384 32768 131072 262144 524288 1048576; do
 					for POOL in $(zpool list -H | grep $POOL_NAME | awk '{print $1}')
 					do
 						BLK_NAME="$(printf %08d $BLK)"
-						TEST="${POOL}-${IOENGINE}-${IODEPTH}-${PAT}-${BLK_NAME}-${JOBS}.fio.json"
-						TESTFS="${POOL}/TEST/BLK_${BLK_NAME}"
+						REC="$BLK"
+						#REC=$((8* 32768))
+						[ "${REC}" -lt ${MIN_ZFS_RECORD_SIZE} ] && REC=${MIN_ZFS_RECORD_SIZE}
+						REC_NAME="$(printf %08d $REC)"
+						echo "REC is now $REC"
+						TEST="${POOL}_${REC}_WITH_SPEC-${IOENGINE}-${IODEPTH}-${PAT}-${JOBS}-${REC_NAME}-${BLK_NAME}.fio.json"
+						TESTFS="${POOL}/TEST/WITH_SPEC_${REC_NAME}_BLK-${BLK_NAME}"
 						echo "Creating ${TESTFS}"
-						[ "${BLK}" -lt ${MIN_ZFS_RECORD_SIZE} ] && BLK=${MIN_ZFS_RECORD_SIZE}
-						echo "BLK is now $BLK"
-						zfs create -p -o recordsize=${BLK} -o compression=off ${TESTFS}
-						#zfs create -p -o recordsize=2097152 -o compression=off ${TESTFS}
+						zfs create -p -o recordsize=${REC} -o compression=off ${TESTFS}
 						zpool wait -t initialize ${POOL}
+						zfs set special_small_blocks=32768 ${TESTFS}
 						echo "Running $TEST"
 						fio --directory=/${TESTFS} \
 						    --name="${TEST}" \
