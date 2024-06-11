@@ -14,8 +14,7 @@ OTHER='scsi-35000c500d'
 #for x in $(./devmap.sh  | awk -F ' ' '{print $2}' | grep -v ':'); do dd if=/dev/zero of=/dev/disk/by-id/${x} bs=1M & done
 
 SGDEVS=""
-for ENC in $(lsscsi -g \
-   | grep -Ei 'enclos.*[SEAGATE\|HGST]' \
+for ENC in $(lsscsi -g | grep  'enclos' | grep 'SEAGATE\|HGST' \
    | awk '{ print $7 }' )
 do SGDEVS="${SGDEVS} $ENC" ; done
 
