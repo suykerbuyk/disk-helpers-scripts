@@ -14,7 +14,8 @@
 #	fi
 #done <5u84.topology.txt
 
-DSK_PAT='scsi-35000c500d'
+#DSK_PAT='scsi-35000c500d'
+DSK_PAT='scsi-35000c500d8'
 
 TMPFILE="${PWD}/${0##*/}-$$-$(date --iso-8601).tmp"
 trap 'rm -rf "$TMPFILE"; exit' ERR EXIT SIGINT QUIT # HUP INT TERM
