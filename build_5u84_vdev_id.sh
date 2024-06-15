@@ -5,7 +5,7 @@ ZPOOL_BASE_NAME="ZPOOL_${HOSTNAME}"
 #ZPOOL Options
 ZPOOL_ASHIFT="12"
 ZPOOL_AUTO_TRIM="on"
-ZPOOL_COMMENT="Test_Pool"
+ZPOOL_COMMENT="AltLabs_$(date --iso-8601)"
 
 #Root ZFS File system options
 ZFS_RECORD_SIZE="$((1024*1024))"
@@ -15,6 +15,15 @@ ZFS_DNODE_SIZE='auto'
 ZFS_SYNC='disabled'
 ZFS_MAX_RECORD_SIZE="$((1024*1024*16))"
 ZFS_SPECIAL_SMALL_BLOCK_SIZE="128k"
+ZFS_CAN_MOUNT="off"
+
+SCRIPT_DIR="${PWD}/build_scripts/${HOSTNAME}"
+VDEV_FILE="${SCRIPT_DIR}/vdev_id.conf"
+
+if [ ! -d "${SCRIPT_DIR}" ] ; then
+	echo "Making script directory: ${SCRIPT_DIR}"
+	mkdir -p "${SCRIPT_DIR}"
+fi
 
 ZPOOL_OPTS=" \
 	-o ashift=${ZPOOL_ASHIFT} \
@@ -22,6 +31,7 @@ ZPOOL_OPTS=" \
 	-o comment=${ZPOOL_COMMENT}"
 ZFS_OPTS=" \
 	-O atime=${ZFS_ATIME} \
+	-O canmount=${ZFS_CAN_MOUNT} \
 	-O compression=${ZFS_COMPRESSION} \
 	-O dnodesize=${ZFS_DNODE_SIZE} \
 	-O recordsize=${ZFS_RECORD_SIZE} \
@@ -94,14 +104,13 @@ build_vdev_id_conf() {
 		cat "${TMP_ENC_FILE}" | sort -u >"${ENC}_${BASE_ENC_MAP_NAME}"
 		rm ${TMP_ENC_FILE}
 	done
-	cat vdev_id.tmp | sort  >vdev_id.conf
+	cat vdev_id.tmp | sort  >"${VDEV_FILE}"
 	rm vdev_id.tmp
 }
 
 build_vdev_maps() {
 	DISKS_PER_VDEV=10
 	MAX_VDEVS=8
-	VDEV_FILE='vdev_id.conf'
 	
 	#Any disks beyond MAX_VDEVS will be used as spares.
 	MAX_VDEV_DISKS=$((MAX_VDEVS * DISKS_PER_VDEV))
@@ -158,7 +167,7 @@ build_vdev_maps() {
 }
 create_raidz2_scripts(){
 	echo "Generating mk_zraid2.sh script"
-	OFILE="mk_raidz2.sh"
+	OFILE="${SCRIPT_DIR}/mk_raidz2.sh"
 	[ -f "${OFILE}" ] && rm "${OFILE}"
 	for MAP in $(ls JBOD_*.map)
 	do
@@ -176,15 +185,15 @@ create_raidz2_scripts(){
 }
 create_draid_scripts(){
 	echo "Generating mk_draid.sh script"
-	OFILE='mk_draid.sh'
+	OFILE="${SCRIPT_DIR}/mk_draid.sh"
 	[ -f "${OFILE}" ] && rm "${OFILE}"
 	echo "zpool create ${ZPOOL_BASE_NAME} \\">>"${OFILE}"
      	echo "${ZPOOL_OPTS} \\" >>"${OFILE}"
 	echo "${ZFS_OPTS} \\" >>"${OFILE}"
-	ENCLOSURES="$(cat vdev_id.conf | awk '{print $2}' | awk -F '-' '{print $1}  ' | sort -u | tr '\n' ' ')"
+	ENCLOSURES="$(cat ${VDEV_FILE} | awk '{print $2}' | awk -F '-' '{print $1}  ' | sort -u | tr '\n' ' ')"
 	for ENC in $ENCLOSURES
 	do
-		DISKS="$(cat vdev_id.conf | grep ${ENC} | awk '{print $2}' | sort -u | tr '\n' ' ')"
+		DISKS="$(cat ${VDEV_FILE} | grep ${ENC} | awk '{print $2}' | sort -u | tr '\n' ' ')"
 		echo -n "draid2:8d:84c:4s " >>"${OFILE}"
 		for DSK in $DISKS
 		do
@@ -195,7 +204,18 @@ create_draid_scripts(){
 	done 
 	chmod +x "${OFILE}"
 }
+create_file_system_scripts() {
+	OFILE="${SCRIPT_DIR}/mk_filesystems.sh"
+	echo "zfs create -o canmount=on -o mountpoint=/storage ${ZFS_BASE_POOL_NAME}/storage"               >"${OFILE}"
+	echo "zfs create -o canmount=on -o recordsize=1M       ${ZFS_BASE_POOL_NAME}/storage/sealed"       >>"${OFILE}"
+	echo "zfs create -o canmount=on -o recordsize=1M       ${ZFS_BASE_POOL_NAME}/storage/unsealed"     >>"${OFILE}"
+	echo "zfs create -o canmount=on -o recordsize=128k     ${ZFS_BASE_POOL_NAME}/storage/cache"        >>"${OFILE}"
+	echo "zfs create -o canmount=on -o recordsize=128k     ${ZFS_BASE_POOL_NAME}/storage/update"       >>"${OFILE}"
+	echo "zfs create -o canmount=on -o recordsize=128k     ${ZFS_BASE_POOL_NAME}/storage/update-cache" >>"${OFILE}"
+	chmod +x "${OFILE}"
+}
 build_vdev_id_conf
 build_vdev_maps
 create_raidz2_scripts
 create_draid_scripts
+create_file_system_scripts
