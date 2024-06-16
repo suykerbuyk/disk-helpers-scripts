@@ -197,7 +197,7 @@ create_draid_scripts(){
 		echo -n "draid2:8d:84c:4s " >>"${OFILE}"
 		for DSK in $DISKS
 		do
-			echo " \\" >>mk_draid.sh
+			echo " \\" >>"${OFILE}"
 			echo -n "/dev/disk/by-vdev/$DSK" >>"${OFILE}"
 		done
 		echo >>"${OFILE}"
@@ -206,16 +206,16 @@ create_draid_scripts(){
 }
 create_file_system_scripts() {
 	OFILE="${SCRIPT_DIR}/mk_filesystems.sh"
-	echo "zfs create -o canmount=on -o mountpoint=/storage ${ZFS_BASE_POOL_NAME}/storage"               >"${OFILE}"
-	echo "zfs create -o canmount=on -o recordsize=1M       ${ZFS_BASE_POOL_NAME}/storage/sealed"       >>"${OFILE}"
-	echo "zfs create -o canmount=on -o recordsize=1M       ${ZFS_BASE_POOL_NAME}/storage/unsealed"     >>"${OFILE}"
-	echo "zfs create -o canmount=on -o recordsize=128k     ${ZFS_BASE_POOL_NAME}/storage/cache"        >>"${OFILE}"
-	echo "zfs create -o canmount=on -o recordsize=128k     ${ZFS_BASE_POOL_NAME}/storage/update"       >>"${OFILE}"
-	echo "zfs create -o canmount=on -o recordsize=128k     ${ZFS_BASE_POOL_NAME}/storage/update-cache" >>"${OFILE}"
+	echo "zfs create -o canmount=on -o mountpoint=/storage ${ZPOOL_BASE_NAME}/storage"               >"${OFILE}"
+	echo "zfs create -o canmount=on -o recordsize=1M       ${ZPOOL_BASE_NAME}/storage/sealed"       >>"${OFILE}"
+	echo "zfs create -o canmount=on -o recordsize=1M       ${ZPOOL_BASE_NAME}/storage/unsealed"     >>"${OFILE}"
+	echo "zfs create -o canmount=on -o recordsize=256k     ${ZPOOL_BASE_NAME}/storage/cache"        >>"${OFILE}"
+	echo "zfs create -o canmount=on -o recordsize=256k     ${ZPOOL_BASE_NAME}/storage/update"       >>"${OFILE}"
+	echo "zfs create -o canmount=on -o recordsize=256k     ${ZPOOL_BASE_NAME}/storage/update-cache" >>"${OFILE}"
 	chmod +x "${OFILE}"
 }
-build_vdev_id_conf
-build_vdev_maps
-create_raidz2_scripts
-create_draid_scripts
+#build_vdev_id_conf
+#build_vdev_maps
+#create_raidz2_scripts
+#create_draid_scripts
 create_file_system_scripts
