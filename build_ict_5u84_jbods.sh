@@ -214,8 +214,8 @@ create_file_system_scripts() {
 	echo "zfs create -o canmount=on -o recordsize=256k     ${ZPOOL_BASE_NAME}/storage/update-cache" >>"${OFILE}"
 	chmod +x "${OFILE}"
 }
-#build_vdev_id_conf
-#build_vdev_maps
-#create_raidz2_scripts
-#create_draid_scripts
+build_vdev_id_conf
+build_vdev_maps
+create_raidz2_scripts
+create_draid_scripts
 create_file_system_scripts
