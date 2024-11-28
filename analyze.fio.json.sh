@@ -1,5 +1,6 @@
 #!/bin/sh
 #../analyze.fio.json.sh | sed 's/-/,/g' | sed 's/.fio.json//g' | sed  's/\t/,/g' | sed 's/  /,/g' 
+rm test.filter
 classic_analysis() {
 for F in $(ls *.json)
 do
@@ -29,6 +30,7 @@ done
 if [ ! -e ./test.filter ]; then
 cat <<EOF >./test.filter
 [.timestamp] \
++ [.zfs_record_size] \
 + (.jobs[] \
 | [.jobname, \
 ."job options".rw,\
@@ -49,10 +51,13 @@ fi
 
 
 new_analysis() {
-echo "Timestamp,JobName,Operation,BlockSize,ThreadCount,RunTime,IoDepth,IoEngine,FileSize,ReadIOPs,WriteIOPs,ReadLatMicroSec,WriteLatMicroSec,ReadBW(MiB),WriteBW(MiB)"
+echo "Timestamp,ZFS_RecordSize,JobName,Operation,BlockSize,ThreadCount,RunTime,IoDepth,IoEngine,FileSize,ReadIOPs,WriteIOPs,ReadLatMicroSec,WriteLatMicroSec,ReadBW(MiB),WriteBW(MiB)"
 for F in $(ls *.json)
 do
-	jq -r -f ./test.filter $F  || echo $F | tr -d '"'
+	ZFS_REC="$(echo $F | awk -F '-' '{print $6}')"
+	JSON_NO_ZFS="$(cat $F)"
+	JSON_W_ZFS="$(echo $JSON_NO_ZFS | jq '. += {"zfs_record_size": '${ZFS_REC}'}')"
+	echo ${JSON_W_ZFS} | jq -r -f ./test.filter || echo $F | tr -d '"'
 done
 }
 
